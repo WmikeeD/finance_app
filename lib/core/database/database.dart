@@ -10,6 +10,7 @@ import 'tables/categorias.dart';
 import 'tables/personas.dart';
 import 'tables/transacciones.dart';
 import 'tables/cuotas.dart';
+import 'tables/perfil.dart';
 
 // Este archivo será generado por build_runner
 part 'database.g.dart';
@@ -21,6 +22,7 @@ part 'database.g.dart';
   Personas,
   Transacciones,
   Cuotas,
+  Perfiles,
 ])
 class AppDatabase extends _$AppDatabase {
   // Constructor
@@ -28,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
 
   // Versión del esquema (incrementar cuando hagas cambios)
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   // Estrategia de migración
   @override
@@ -47,10 +49,10 @@ class AppDatabase extends _$AppDatabase {
         
         // Migración cuando se actualiza la versión
         onUpgrade: (migrator, from, to) async {
-          // Ejemplo de migración de versión 1 a 2
-          // if (from < 2) {
-          //   await migrator.addColumn(transacciones, transacciones.sincronizado);
-          // }
+          // Migración v1 → v2: agregar tabla Perfiles
+          if (from < 2) {
+            await migrator.createTable(perfiles);
+          }
         },
       );
 
@@ -154,6 +156,33 @@ class AppDatabase extends _$AppDatabase {
         color: const Value('#4CAF50'),
       ),
     );
+
+    // Perfil por defecto
+    await into(perfiles).insert(
+      PerfilesCompanion.insert(
+        id: const Value(1),
+      ),
+    );
+  }
+
+  // =============================================
+  // MÉTODOS DE PERFIL
+  // =============================================
+
+  /// Obtener el perfil del usuario (siempre id = 1)
+  Future<Perfil?> obtenerPerfil() async {
+    return await (select(perfiles)..where((p) => p.id.equals(1)))
+        .getSingleOrNull();
+  }
+
+  /// Guardar/actualizar el perfil
+  Future<void> guardarPerfil(PerfilesCompanion perfil) async {
+    final existe = await obtenerPerfil();
+    if (existe == null) {
+      await into(perfiles).insert(perfil.copyWith(id: const Value(1)));
+    } else {
+      await (update(perfiles)..where((p) => p.id.equals(1))).write(perfil);
+    }
   }
 }
 
