@@ -4,6 +4,7 @@ import '../../features/cuentas/cuentas_screen.dart';
 import '../../features/categorias/categorias_screen.dart';
 import '../../features/personas/personas_screen.dart';
 import '../../features/transacciones/transacciones_screen.dart';
+import '../../features/configuracion/configuracion_screen.dart';
 import '../database/database.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -68,7 +69,7 @@ class AppDrawer extends StatelessWidget {
             icon: Icons.settings,
             title: 'Ajustes',
             route: '/settings',
-            screen: const Placeholder(), // TODO: Implementar más adelante
+            screen: ConfiguracionScreen(database: database),
           ),
           _buildMenuItem(
             context: context,
