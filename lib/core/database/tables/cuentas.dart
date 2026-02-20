@@ -24,6 +24,9 @@ class Cuentas extends Table {
   // Día de pago de tarjeta (1-31, solo para crédito)
   IntColumn get diaPago => integer().nullable()();
   
+  // Meta de ahorro (solo para cuentas de ahorro)
+  RealColumn get meta => real().nullable()();
+  
   // Color hex para identificar visualmente (ej: "#FF5733")
   TextColumn get color => text().withLength(min: 7, max: 9).withDefault(const Constant('#2196F3'))();
   

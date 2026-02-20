@@ -30,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
 
   // Versión del esquema (incrementar cuando hagas cambios)
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   // Estrategia de migración
   @override
@@ -52,6 +52,11 @@ class AppDatabase extends _$AppDatabase {
           // Migración v1 → v2: agregar tabla Perfiles
           if (from < 2) {
             await migrator.createTable(perfiles);
+          }
+          
+          // Migración v2 → v3: agregar campo meta a Cuentas
+          if (from < 3) {
+            await migrator.addColumn(cuentas, cuentas.meta);
           }
         },
       );

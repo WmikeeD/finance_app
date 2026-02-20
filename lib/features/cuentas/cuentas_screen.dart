@@ -172,6 +172,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
     final limiteController = TextEditingController();
     final diaCierreController = TextEditingController();
     final diaPagoController = TextEditingController();
+    final metaController = TextEditingController();
     
     String tipoCuenta = 'debito';
     
@@ -294,6 +295,37 @@ class _CuentasScreenState extends State<CuentasScreen> {
                     ],
                   ),
                 ],
+                
+                // Campos específicos para AHORRO
+                if (tipoCuenta == 'ahorro') ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Configuración de Ahorro',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Meta de ahorro
+                  TextField(
+                    controller: metaController,
+                    decoration: const InputDecoration(
+                      labelText: 'Meta de ahorro (opcional)',
+                      hintText: 'Ej: 500000',
+                      prefixIcon: Icon(Icons.flag),
+                      helperText: 'Monto que deseas ahorrar',
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -355,8 +387,20 @@ class _CuentasScreenState extends State<CuentasScreen> {
                       diaPago: drift.Value(diaPago),
                     ),
                   );
+                } else if (tipoCuenta == 'ahorro') {
+                  // Insertar cuenta de ahorro con meta opcional
+                  final meta = double.tryParse(metaController.text);
+                  
+                  await widget.database.into(widget.database.cuentas).insert(
+                    CuentasCompanion.insert(
+                      nombre: nombreController.text,
+                      tipo: tipoCuenta,
+                      saldo: drift.Value(saldoFinal),
+                      meta: drift.Value(meta),
+                    ),
+                  );
                 } else {
-                  // Insertar cuenta normal (efectivo, débito, ahorro)
+                  // Insertar cuenta normal (efectivo, débito)
                   await widget.database.into(widget.database.cuentas).insert(
                     CuentasCompanion.insert(
                       nombre: nombreController.text,
@@ -407,6 +451,16 @@ class _CuentasScreenState extends State<CuentasScreen> {
                 if (cuenta.diaPago != null)
                   _buildInfoRow('Día de pago', cuenta.diaPago.toString()),
               ],
+              if (cuenta.tipo == 'ahorro') ...[
+                const Divider(height: 24),
+                if (cuenta.meta != null)
+                  _buildInfoRow('Meta', '\$${cuenta.meta!.toStringAsFixed(0)}'),
+                if (cuenta.meta != null)
+                  _buildInfoRow(
+                    'Progreso',
+                    '${((cuenta.saldo / cuenta.meta!) * 100).toStringAsFixed(1)}%',
+                  ),
+              ],
             ],
           ),
         ),
@@ -415,6 +469,11 @@ class _CuentasScreenState extends State<CuentasScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cerrar'),
           ),
+          if (cuenta.tipo == 'ahorro')
+            TextButton(
+              onPressed: () => _showEditMetaDialog(cuenta),
+              child: const Text('Editar Meta'),
+            ),
           TextButton(
             onPressed: () async {
               final confirmar = await showDialog<bool>(
@@ -473,6 +532,74 @@ class _CuentasScreenState extends State<CuentasScreen> {
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditMetaDialog(Cuenta cuenta) {
+    final metaController = TextEditingController(
+      text: cuenta.meta != null ? cuenta.meta!.toStringAsFixed(0) : '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar Meta de Ahorro'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Saldo actual: \$${cuenta.saldo.toStringAsFixed(0)}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: metaController,
+              decoration: const InputDecoration(
+                labelText: 'Meta de ahorro',
+                hintText: 'Ej: 500000',
+                prefixIcon: Icon(Icons.flag),
+                prefixText: '\$ ',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+              ],
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final meta = double.tryParse(metaController.text);
+              
+              await (widget.database.update(widget.database.cuentas)
+                    ..where((c) => c.id.equals(cuenta.id)))
+                  .write(
+                CuentasCompanion(
+                  meta: drift.Value(meta),
+                ),
+              );
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                Navigator.pop(context); // Cerrar también el diálogo de detalles
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Meta actualizada')),
+                );
+              }
+            },
+            child: const Text('Guardar'),
           ),
         ],
       ),
