@@ -11,6 +11,8 @@ import 'tables/personas.dart';
 import 'tables/transacciones.dart';
 import 'tables/cuotas.dart';
 import 'tables/perfil.dart';
+import 'tables/deudas.dart';
+import 'tables/pagos_deuda.dart';
 
 // Este archivo será generado por build_runner
 part 'database.g.dart';
@@ -23,6 +25,8 @@ part 'database.g.dart';
   Transacciones,
   Cuotas,
   Perfiles,
+  Deudas,  
+  PagosDeuda, 
 ])
 class AppDatabase extends _$AppDatabase {
   // Constructor
@@ -30,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
 
   // Versión del esquema (incrementar cuando hagas cambios)
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   // Estrategia de migración
   @override
@@ -57,6 +61,12 @@ class AppDatabase extends _$AppDatabase {
           // Migración v2 → v3: agregar campo meta a Cuentas
           if (from < 3) {
             await migrator.addColumn(cuentas, cuentas.meta);
+          }
+
+          // Migración v3 → v4: agregar tabla Deudas y PagosDeuda
+          if (from < 4) {
+            await migrator.createTable(deudas);
+            await migrator.createTable(pagosDeuda);
           }
         },
       );

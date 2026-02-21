@@ -486,7 +486,215 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
     );
   }
 
+  Future<void> _crearDeudaDesdeTransaccion({
+    required int personaId,
+    required int transaccionId,
+    required String tipo,
+    required double montoTotal,
+    int? cantidadCuotas,
+  }) async {
+    await widget.database.into(widget.database.deudas).insert(
+      DeudasCompanion.insert(
+        personaId: personaId,
+        transaccionId: transaccionId,
+        tipo: tipo,
+        montoTotal: montoTotal,
+        montoPendiente: montoTotal,
+      ),
+    );
+  }
+
   Future<void> _guardarTransaccion({
+    required BuildContext context,
+    required String descripcion,
+    required String monto,
+    required String tipo,
+    required String formaPago,
+    required Cuenta? cuenta,
+    required Categoria? categoria,
+    required bool esPrestamo,
+    required Persona? persona,
+    required String cuotas,
+    required String valorCuota,
+  }) async {
+    
+    // Si es a crédito, validar campos de cuotas
+    int? cantidadCuotas;
+    double? valorCuotaValue;
+    double? montoConInteres;
+    double? interesTotal;
+
+    // VALIDACIONES INICIALES (antes de la transacción)
+    if (descripcion.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingresa una descripción')),
+      );
+      return;
+    }
+
+    // PARSEAR MONTO AQUÍ para tenerlo disponible
+    final montoValue = double.tryParse(monto);
+    if (montoValue == null || montoValue <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingresa un monto válido')),
+      );
+      return;
+    }
+
+    // VALIDAR QUE CUENTA Y CATEGORIA NO SEAN NULL
+    if (cuenta == null || categoria == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona cuenta y categoría')),
+      );
+      return;
+    }    
+
+    if (formaPago == 'credito') {
+      cantidadCuotas = int.tryParse(cuotas);
+      valorCuotaValue = double.tryParse(valorCuota);
+
+      if (cantidadCuotas == null || cantidadCuotas <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ingresa un número de cuotas válido')),
+        );
+        return;
+      }
+
+      if (valorCuotaValue == null || valorCuotaValue <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ingresa el valor de la cuota')),
+        );
+        return;
+      }
+
+      montoConInteres = valorCuotaValue * cantidadCuotas;
+      interesTotal = montoConInteres - montoValue;
+    }
+
+    // AHORA SÍ: Ejecutar en transacción atómica
+    // cuenta ya está validada que no es null
+    await widget.database.transaction(() async {
+      // 1. Crear transacción
+      final transaccionId = await widget.database.into(widget.database.transacciones).insert(
+        TransaccionesCompanion.insert(
+          tipo: tipo,
+          descripcion: descripcion,
+          montoTotal: montoValue, // ✅ Ya está definido
+          formaPago: formaPago,
+          fecha: DateTime.now(),
+          cuentaId: cuenta.id, // ✅ Safe porque validamos cuenta != null
+          categoriaId: categoria.id,
+          esPrestamo: drift.Value(esPrestamo),
+          personaId: drift.Value(persona?.id),
+          cantidadCuotas: drift.Value(cantidadCuotas),
+          valorCuota: drift.Value(valorCuotaValue),
+          montoTotalConInteres: drift.Value(montoConInteres),
+          interesTotal: drift.Value(interesTotal),
+        ),
+      );
+
+      // 2. Si es a crédito, crear las cuotas con lógica de fechas correcta
+      if (formaPago == 'credito' && cantidadCuotas != null && valorCuotaValue != null) {
+        // ✅ OBTENER fechas de la cuenta (ya validada que no es null)
+        final diaCierre = cuenta.diaCierre;
+        final diaPago = cuenta.diaPago;
+        
+        if (diaCierre == null || diaPago == null) {
+          throw Exception('La cuenta de crédito no tiene configurada la fecha de cierre o pago');
+        }
+
+        final fechaCompra = DateTime.now();
+        
+        // ✅ CALCULAR fecha de la primera cuota
+        final fechaPrimeraCuota = _calcularFechaPrimeraCuota(
+          fechaCompra: fechaCompra,
+          diaCierre: diaCierre,
+          diaPago: diaPago,
+        );
+
+        // Crear cada cuota sumando meses a partir de la primera
+        for (int i = 0; i < cantidadCuotas; i++) {
+          final fechaVencimiento = DateTime(
+            fechaPrimeraCuota.year,
+            fechaPrimeraCuota.month + i,
+            diaPago,
+          );
+          
+          await widget.database.into(widget.database.cuotas).insert(
+            CuotasCompanion.insert(
+              transaccionId: transaccionId,
+              numeroCuota: i + 1,
+              monto: valorCuotaValue,
+              fechaVencimiento: fechaVencimiento,
+            ),
+          );
+        }
+      }
+
+      if (esPrestamo && persona != null) {
+        await _crearDeudaDesdeTransaccion(
+          personaId: persona.id,
+          transaccionId: transaccionId,
+          tipo: formaPago == 'credito' ? 'cuotas' : 'simple',
+          montoTotal: formaPago == 'credito' ? montoConInteres! : montoValue,
+          cantidadCuotas: cantidadCuotas,
+        );
+      }
+
+      // 3. Actualizar saldo de la cuenta ✅ cuenta no es null
+      double nuevoSaldo = cuenta.saldo;
+      
+      if (tipo == 'ingreso') {
+        nuevoSaldo += montoValue;
+      } else if (tipo == 'egreso') {
+        if (formaPago == 'debito' || formaPago == 'efectivo') {
+          nuevoSaldo -= montoValue;
+        } else if (formaPago == 'credito') {
+          nuevoSaldo -= montoValue;
+        }
+      }
+
+      await widget.database.update(widget.database.cuentas).replace(
+        cuenta.copyWith(saldo: nuevoSaldo),
+      );
+    });
+
+    if (context.mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Transacción registrada exitosamente')),
+      );
+    }
+  }
+
+  ///MÉTODO AUXILIAR: Calcula la fecha de la primera cuota según lógica de tarjeta de crédito
+  DateTime _calcularFechaPrimeraCuota({
+    required DateTime fechaCompra,
+    required int diaCierre,
+    required int diaPago,
+  }) {
+    final year = fechaCompra.year;        // ✅ 'year' en lugar de 'año'
+    final month = fechaCompra.month;      // ✅ 'month' en lugar de 'mes'
+    final day = fechaCompra.day;          // ✅ 'day' en lugar de 'dia'
+
+    // Fecha de cierre del mes actual
+    //final fechaCierreEsteMes = DateTime(year, month, diaCierre);
+    
+    // Comparar: ¿la compra es ANTES o el DÍA del cierre?
+    // Si es EL DÍA del cierre, se considera DESPUÉS (entra al siguiente periodo)
+    if (day <= diaCierre) {
+      // ✅ COMPRA ANTES O EL DÍA DEL CIERRE
+      // - Entra en el resumen que cierra ESTE mes
+      // - Se paga el mes siguiente
+      return DateTime(year, month + 1, diaPago);
+    } else {
+      // ✅ COMPRA DESPUÉS DEL CIERRE
+      // - Entra en el resumen que cierra el MES SIGUIENTE
+      // - Se paga dentro de 2 meses
+      return DateTime(year, month + 2, diaPago);
+    }
+  }
+  /*Future<void> _guardarTransaccion({
     required BuildContext context,
     required String descripcion,
     required String monto,
@@ -599,7 +807,7 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
         const SnackBar(content: Text('Transacción registrada exitosamente')),
       );
     }
-  }
+  }*/
 
   void _showTransaccionDetails(Transaccion transaccion) {
     showDialog(
@@ -657,6 +865,77 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
               );
               
               if (confirmar == true && context.mounted) {
+                // ✅ NUEVO: Revertir el saldo antes de eliminar
+                await widget.database.transaction(() async {
+                  // 1. Obtener la cuenta asociada
+                  final cuenta = await (widget.database.select(widget.database.cuentas)
+                        ..where((c) => c.id.equals(transaccion.cuentaId)))
+                      .getSingle();
+                  
+                  // 2. Calcular el nuevo saldo (revertir la transacción)
+                  double nuevoSaldo = cuenta.saldo;
+                  
+                  if (transaccion.tipo == 'ingreso') {
+                    // Si era ingreso, restamos el monto (lo quitamos)
+                    nuevoSaldo -= transaccion.montoTotal;
+                  } else if (transaccion.tipo == 'egreso') {
+                    // Si era egreso, sumamos el monto (lo devolvemos)
+                    if (transaccion.formaPago == 'debito' || transaccion.formaPago == 'efectivo') {
+                      nuevoSaldo += transaccion.montoTotal;
+                    } else if (transaccion.formaPago == 'credito') {
+                      nuevoSaldo += transaccion.montoTotal; // Reducimos la deuda
+                    }
+                  }
+                  
+                  // 3. Actualizar la cuenta
+                  await widget.database.update(widget.database.cuentas).replace(
+                    cuenta.copyWith(saldo: nuevoSaldo),
+                  );
+                  
+                  // 4. Si es crédito, eliminar las cuotas asociadas
+                  if (transaccion.formaPago == 'credito') {
+                    await (widget.database.delete(widget.database.cuotas)
+                          ..where((c) => c.transaccionId.equals(transaccion.id)))
+                        .go();
+                  }
+                  
+                  // 5. Eliminar la transacción
+                  await (widget.database.delete(widget.database.transacciones)
+                        ..where((t) => t.id.equals(transaccion.id)))
+                      .go();
+                });
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Transacción eliminada')),
+                  );
+                }
+              }
+            },
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+          /*TextButton(
+            onPressed: () async {
+              final confirmar = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Confirmar eliminación'),
+                  content: const Text('¿Estás seguro de eliminar esta transacción?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              
+              if (confirmar == true && context.mounted) {
                 await (widget.database.delete(widget.database.transacciones)
                       ..where((t) => t.id.equals(transaccion.id)))
                     .go();
@@ -669,7 +948,7 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
               }
             },
             child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-          ),
+          ),*/
         ],
       ),
     );
