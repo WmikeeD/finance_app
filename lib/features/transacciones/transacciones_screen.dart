@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:drift/drift.dart' as drift;
+import 'package:drift/drift.dart' as drift hide Column;
 import '../../core/database/database.dart';
 import '../../core/widgets/app_drawer.dart';
 import '../cuentas/cuentas_screen.dart';
+import '../../core/utils/formatters.dart';
 
 class TransaccionesScreen extends StatefulWidget {
   final AppDatabase database;
@@ -176,6 +177,8 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
           ),
         ),
         onTap: () => _showTransaccionDetails(transaccion),
+        // Botón de editar
+        onLongPress: () => _showEditTransaccionDialog(transaccion),
       ),
     );
   }
@@ -486,6 +489,250 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
     );
   }
 
+  void _showEditTransaccionDialog(Transaccion transaccion) async {
+    // Obtener datos relacionados
+    final cuenta = await (widget.database.select(widget.database.cuentas)
+          ..where((c) => c.id.equals(transaccion.cuentaId)))
+        .getSingle();
+    
+    final categorias = await widget.database.select(widget.database.categorias).get();
+    
+    // Controllers
+    final descripcionController = TextEditingController(text: transaccion.descripcion);
+    final montoController = TextEditingController(text: transaccion.montoTotal.toString());
+    
+    // Variables de estado
+    Categoria? categoriaSeleccionada = categorias.firstWhere(
+      (c) => c.id == transaccion.categoriaId,
+      orElse: () => categorias.first,
+    );
+    
+    DateTime fechaSeleccionada = transaccion.fecha;
+    double montoOriginal = transaccion.montoTotal;
+    bool editarMonto = false;
+    bool editarFecha = false;
+
+    // Verificar si hay cuotas pagadas
+    final cuotasPagadas = await (widget.database.select(widget.database.cuotas)
+          ..where((c) => c.transaccionId.equals(transaccion.id) & c.pagada.equals(true)))
+        .get();
+    
+    final tieneCuotasPagadas = cuotasPagadas.isNotEmpty;
+    final esCredito = transaccion.formaPago == 'credito';
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Editar Transacción'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Info no editable
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Cuenta: ${cuenta.nombre}', style: TextStyle(color: Colors.grey[700])),
+                        Text('Tipo: ${transaccion.tipo}', style: TextStyle(color: Colors.grey[700])),
+                        if (esCredito)
+                          Text('${transaccion.cantidadCuotas} cuotas', style: TextStyle(color: Colors.grey[700])),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ✅ EDICIÓN BÁSICA - Siempre permitida
+                  
+                  // Descripción
+                  TextField(
+                    controller: descripcionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción',
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Categoría
+                  DropdownButtonFormField<Categoria>(
+                    value: categoriaSeleccionada,
+                    decoration: const InputDecoration(
+                      labelText: 'Categoría',
+                      prefixIcon: Icon(Icons.category),
+                    ),
+                    items: categorias.where((c) => c.tipo == transaccion.tipo).map((categoria) {
+                      return DropdownMenuItem(
+                        value: categoria,
+                        child: Text(categoria.nombre),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        categoriaSeleccionada = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ✅ EDICIÓN AVANZADA - Con restricciones
+                  
+                  const Divider(),
+                  const Text(
+                    'Edición Avanzada',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Monto
+                  CheckboxListTile(
+                    title: const Text('Editar monto'),
+                    subtitle: Text(
+                      esCredito 
+                        ? 'Recalculará el valor de las cuotas pendientes'
+                        : 'Ajustará el saldo de la cuenta',
+                    ),
+                    value: editarMonto,
+                    onChanged: (value) {
+                      if (esCredito && tieneCuotasPagadas) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('No se puede editar el monto si ya hay cuotas pagadas'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      setDialogState(() {
+                        editarMonto = value ?? false;
+                      });
+                    },
+                  ),
+                  if (editarMonto) ...[
+                    TextField(
+                      controller: montoController,
+                      decoration: InputDecoration(
+                        labelText: 'Nuevo monto',
+                        prefixText: '\$ ',
+                        helperText: esCredito 
+                          ? 'Monto original: ${Formatters.monedaConSimbolo(montoOriginal)}'
+                          : null,
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // Fecha
+                  CheckboxListTile(
+                    title: const Text('Editar fecha'),
+                    subtitle: Text(
+                      esCredito
+                        ? tieneCuotasPagadas
+                          ? '❌ No disponible: hay cuotas pagadas'
+                          : 'Recalculará las fechas de vencimiento de cuotas'
+                        : 'Cambiará la fecha del registro',
+                    ),
+                    value: editarFecha,
+                    onChanged: (tieneCuotasPagadas && esCredito) 
+                      ? null  // Deshabilitado si hay cuotas pagadas
+                      : (value) {
+                          setDialogState(() {
+                            editarFecha = value ?? false;
+                          });
+                        },
+                  ),
+                  if (editarFecha) ...[
+                    ListTile(
+                      leading: const Icon(Icons.calendar_today),
+                      title: const Text('Fecha de compra'),
+                      subtitle: Text(Formatters.fecha(fechaSeleccionada)),
+                      trailing: const Icon(Icons.edit),
+                      onTap: () async {
+                        final nuevaFecha = await showDatePicker(
+                          context: context,
+                          initialDate: fechaSeleccionada,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                        );
+                        if (nuevaFecha != null) {
+                          setDialogState(() {
+                            fechaSeleccionada = nuevaFecha;
+                          });
+                        }
+                      },
+                    ),
+                    if (esCredito) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '⚠️ Al cambiar la fecha, se recalcularán las fechas de vencimiento de las cuotas según el nuevo cierre de tarjeta.',
+                          style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final nuevoMonto = double.tryParse(montoController.text) ?? montoOriginal;
+                  
+                  if (editarMonto && nuevoMonto <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ingresa un monto válido')),
+                    );
+                    return;
+                  }
+
+                  await _actualizarTransaccion(
+                    transaccion: transaccion,
+                    nuevaDescripcion: descripcionController.text,
+                    nuevaCategoriaId: categoriaSeleccionada!.id,
+                    editarMonto: editarMonto,
+                    nuevoMonto: nuevoMonto,
+                    editarFecha: editarFecha,
+                    nuevaFecha: fechaSeleccionada,
+                    cuenta: cuenta,
+                  );
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Transacción actualizada')),
+                    );
+                  }
+                },
+                child: const Text('Guardar cambios'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _crearDeudaDesdeTransaccion({
     required int personaId,
     required int transaccionId,
@@ -665,6 +912,125 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
         const SnackBar(content: Text('Transacción registrada exitosamente')),
       );
     }
+  }
+
+  Future<void> _actualizarTransaccion({
+    required Transaccion transaccion,
+    required String nuevaDescripcion,
+    required int nuevaCategoriaId,
+    required bool editarMonto,
+    required double nuevoMonto,
+    required bool editarFecha,
+    required DateTime nuevaFecha,
+    required Cuenta cuenta,
+  }) async {
+    await widget.database.transaction(() async {
+      final esCredito = transaccion.formaPago == 'credito';
+      final montoAnterior = transaccion.montoTotal;
+      
+      // 1. Actualizar datos básicos siempre
+      await widget.database.update(widget.database.transacciones).replace(
+        transaccion.copyWith(
+          descripcion: nuevaDescripcion,
+          categoriaId: nuevaCategoriaId,
+          montoTotal: editarMonto ? nuevoMonto : transaccion.montoTotal,
+          fecha: editarFecha ? nuevaFecha : transaccion.fecha,
+          // Si edita monto y es crédito, recalcular campos relacionados
+          montoTotalConInteres: (editarMonto && esCredito)
+            ? drift.Value(nuevoMonto * (transaccion.montoTotalConInteres! / montoAnterior))
+            : drift.Value(transaccion.montoTotalConInteres),
+
+          // Lo mismo para valorCuota
+          valorCuota: (editarMonto && esCredito)
+              ? drift.Value(nuevoMonto / transaccion.cantidadCuotas!)
+              : drift.Value(transaccion.valorCuota),
+        ),
+      );
+
+      // 2. Si edita monto y es débito/efectivo, ajustar saldo de cuenta
+      if (editarMonto && !esCredito) {
+        final diferencia = nuevoMonto - montoAnterior;
+        double nuevoSaldo = cuenta.saldo;
+        
+        if (transaccion.tipo == 'egreso') {
+          // Si era egreso de $50 y ahora es $60, restar $10 más
+          nuevoSaldo -= diferencia;
+        } else if (transaccion.tipo == 'ingreso') {
+          // Si era ingreso de $50 y ahora es $60, sumar $10 más
+          nuevoSaldo += diferencia;
+        }
+
+        await widget.database.update(widget.database.cuentas).replace(
+          cuenta.copyWith(saldo: nuevoSaldo),
+        );
+      }
+
+      // 3. Si edita monto y es crédito, recalcular cuotas pendientes
+      if (editarMonto && esCredito) {
+        final cuotasPendientes = await (widget.database.select(widget.database.cuotas)
+              ..where((c) => c.transaccionId.equals(transaccion.id) & c.pagada.equals(false)))
+            .get();
+
+        final nuevoValorCuota = nuevoMonto / transaccion.cantidadCuotas!;
+        
+        for (final cuota in cuotasPendientes) {
+          await widget.database.update(widget.database.cuotas).replace(
+            cuota.copyWith(monto: nuevoValorCuota),
+          );
+        }
+
+        // Actualizar deuda asociada si es préstamo
+        if (transaccion.esPrestamo) {
+          final deuda = await (widget.database.select(widget.database.deudas)
+                ..where((d) => d.transaccionId.equals(transaccion.id)))
+              .getSingleOrNull();
+          
+          if (deuda != null) {
+            final proporcionPagada = deuda.montoPagado / deuda.montoTotal;
+            final nuevoMontoPagado = nuevoMonto * proporcionPagada;
+            
+            await widget.database.update(widget.database.deudas).replace(
+              deuda.copyWith(
+                montoTotal: nuevoMonto,
+                montoPendiente: nuevoMonto - nuevoMontoPagado,
+                montoPagado: nuevoMontoPagado,
+              ),
+            );
+          }
+        }
+      }
+
+      // 4. Si edita fecha y es crédito, recalcular fechas de cuotas
+      if (editarFecha && esCredito) {
+        final diaCierre = cuenta.diaCierre;
+        final diaPago = cuenta.diaPago;
+        
+        if (diaCierre != null && diaPago != null) {
+          final nuevaFechaPrimeraCuota = _calcularFechaPrimeraCuota(
+            fechaCompra: nuevaFecha,
+            diaCierre: diaCierre,
+            diaPago: diaPago,
+          );
+
+          final cuotas = await (widget.database.select(widget.database.cuotas)
+                ..where((c) => c.transaccionId.equals(transaccion.id))
+                ..orderBy([(c) => drift.OrderingTerm(expression: c.numeroCuota)]))
+              .get();
+
+          for (int i = 0; i < cuotas.length; i++) {
+            final nuevaFechaVencimiento = DateTime(
+              nuevaFechaPrimeraCuota.year,
+              nuevaFechaPrimeraCuota.month + i,
+              diaPago,
+            );
+            
+            await widget.database.update(widget.database.cuotas).replace(
+              cuotas[i].copyWith(fechaVencimiento: nuevaFechaVencimiento),
+            );
+          }
+        }
+      }
+    });
   }
 
   ///MÉTODO AUXILIAR: Calcula la fecha de la primera cuota según lógica de tarjeta de crédito

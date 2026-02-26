@@ -342,10 +342,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 12),
         StreamBuilder<List<Transaccion>>(
-          stream: widget.database
-              .select(widget.database.transacciones)
-              .watch()
-              .map((list) => list.take(5).toList()),
+          stream: (widget.database.select(widget.database.transacciones)
+            ..orderBy([
+              (t) => OrderingTerm(
+                    expression: t.fecha,
+                    mode: OrderingMode.desc,
+                  )
+            ]))
+          .watch()
+          .map((list) => list.take(5).toList()),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -499,13 +504,11 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             _buildActionCard(
-              'Ver Reportes',
-              Icons.assessment,
-              Colors.green,
+              'Proyección',
+              Icons.trending_up,  // O Icons.calendar_month
+              Colors.teal,
               () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Próximamente: Reportes')),
-                );
+                Navigator.pushNamed(context, '/proyeccion');
               },
             ),
           ],

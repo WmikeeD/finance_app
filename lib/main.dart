@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/database/database.dart';
 import 'core/theme/app_theme.dart';
 import 'features/home/home_screen.dart';
+import 'features/proyeccion/proyeccion_screen.dart';
 
 void main() {
   runApp(const FinanceApp());
@@ -77,6 +78,11 @@ class _MyAppState extends State<MyApp> {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeMode.light,
+          routes: {
+            //'/': (context) => HomeScreen(database: widget.database),
+            //'/home': (context) => HomeScreen(database: widget.database),
+            '/proyeccion': (context) => ProyeccionScreen(database: widget.database),
+          },
           home: HomeScreen(database: widget.database),
         );
       },
