@@ -8,6 +8,8 @@ import '../cuentas/cuentas_screen.dart';
 import '../transacciones/transacciones_screen.dart';
 import '../categorias/categorias_screen.dart';
 import '../personas/personas_screen.dart';
+import '../gastos_fijos/gastos_fijos_screen.dart';
+import '../reportes/reportes_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final AppDatabase database;
@@ -50,6 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildThreeCards(),
             const SizedBox(height: 16),
             _buildAhorroProgress(),
+            const SizedBox(height: 16),
+            _buildGastosFijosCard(),
             const SizedBox(height: 24),
             _buildRecentTransactions(),
             const SizedBox(height: 24),
@@ -153,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _buildBalanceCard(
                     'Flujo del Mes',
                     flujoDelMes,
-                    'Cuotas + Gastos',
+                    'Cuotas + Fijos',
                     Icons.trending_down,
                     flujoDelMes >= 0 ? Colors.green : Colors.red,
                     () => _navigateToTransacciones(),
@@ -300,6 +304,74 @@ class _HomeScreenState extends State<HomeScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(
                         progreso >= 1.0 ? Colors.green : Colors.orange,
                       ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGastosFijosCard() {
+    return StreamBuilder<List<GastoFijo>>(
+      stream: widget.database.watchGastosFijos(soloActivos: true),
+      builder: (context, snapshot) {
+        final gastos = snapshot.data ?? [];
+        if (gastos.isEmpty) return const SizedBox.shrink();
+
+        final total = gastos.fold(0.0, (sum, g) => sum + g.monto);
+
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GastosFijosScreen(database: widget.database),
+            ),
+          ),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.repeat, color: Colors.red, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Gastos Fijos Mensuales',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '${gastos.length} gastos activos',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    Formatters.monedaConSimbolo(total),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
                     ),
                   ),
                 ],
@@ -478,14 +550,14 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             _buildActionCard(
-              'Categorías',
-              Icons.category,
+              'Reportes',
+              Icons.bar_chart,
               Colors.purple,
               () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => CategoriasScreen(database: widget.database),
+                    builder: (_) => ReportesScreen(database: widget.database),
                   ),
                 );
               },
@@ -678,7 +750,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final totalCuotas = cuotasDelMes.fold(0.0, (sum, c) => sum + c.monto);
 
-      return ingresos - egresosDebito - totalCuotas;
+      final totalGastosFijos =
+          await widget.database.totalGastosFijosActivos();
+
+      return ingresos - egresosDebito - totalCuotas - totalGastosFijos;
     });
   }
   /*Stream<double> _calcularFlujoDelMes() {

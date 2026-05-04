@@ -15,6 +15,25 @@ class Perfiles extends Table {
   TextColumn get colorPrimario =>
       text().withLength(min: 7, max: 9).withDefault(const Constant('#6C63FF'))();
 
+  // null = sistema, true = oscuro, false = claro
+  BoolColumn get temaOscuro => boolean().nullable()();
+
+  // Color dinámico según balance disponible
+  BoolColumn get colorDinamico =>
+      boolean().withDefault(const Constant(false))();
+  RealColumn get balanceMinimo =>
+      real().withDefault(const Constant(100000.0))();
+  RealColumn get balanceMaximo =>
+      real().withDefault(const Constant(50000000.0))();
+
+  // Notificaciones
+  BoolColumn get notifCuotas =>
+      boolean().withDefault(const Constant(true))();
+  IntColumn get notifDiasAntes =>
+      integer().withDefault(const Constant(3))();
+  BoolColumn get notifGastosFijos =>
+      boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

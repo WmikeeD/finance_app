@@ -13,6 +13,7 @@ import 'tables/cuotas.dart';
 import 'tables/perfil.dart';
 import 'tables/deudas.dart';
 import 'tables/pagos_deuda.dart';
+import 'tables/gastos_fijos.dart';
 
 // Este archivo será generado por build_runner
 part 'database.g.dart';
@@ -27,14 +28,14 @@ part 'database.g.dart';
   Perfiles,
   Deudas,  
   PagosDeuda, 
+  GastosFijos,
 ])
 class AppDatabase extends _$AppDatabase {
   // Constructor
   AppDatabase() : super(_openConnection());
 
-  // Versión del esquema (incrementar cuando hagas cambios)
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 8;
 
   // Estrategia de migración
   @override
@@ -67,6 +68,30 @@ class AppDatabase extends _$AppDatabase {
           if (from < 4) {
             await migrator.createTable(deudas);
             await migrator.createTable(pagosDeuda);
+          }
+
+          // Migración v4 → v5: agregar tabla GastosFijos
+          if (from < 5) {
+            await migrator.createTable(gastosFijos);
+          }
+
+          // Migración v5 → v6: agregar campo temaOscuro al perfil
+          if (from < 6) {
+            await migrator.addColumn(perfiles, perfiles.temaOscuro);
+          }
+
+          // Migración v6 → v7: color dinámico y límites de balance
+          if (from < 7) {
+            await migrator.addColumn(perfiles, perfiles.colorDinamico);
+            await migrator.addColumn(perfiles, perfiles.balanceMinimo);
+            await migrator.addColumn(perfiles, perfiles.balanceMaximo);
+          }
+
+          // Migración v7 → v8: preferencias de notificaciones
+          if (from < 8) {
+            await migrator.addColumn(perfiles, perfiles.notifCuotas);
+            await migrator.addColumn(perfiles, perfiles.notifDiasAntes);
+            await migrator.addColumn(perfiles, perfiles.notifGastosFijos);
           }
         },
       );
@@ -198,6 +223,39 @@ class AppDatabase extends _$AppDatabase {
     } else {
       await (update(perfiles)..where((p) => p.id.equals(1))).write(perfil);
     }
+  }
+
+  // =============================================
+  // MÉTODOS DE GASTOS FIJOS
+  // =============================================
+
+  Stream<List<GastoFijo>> watchGastosFijos({bool? soloActivos}) {
+    final query = select(gastosFijos)
+      ..orderBy([(g) => OrderingTerm.asc(g.diaVencimiento)]);
+    if (soloActivos == true) {
+      query.where((g) => g.activo.equals(true));
+    }
+    return query.watch();
+  }
+
+  Future<void> insertarGastoFijo(GastosFijosCompanion gasto) async {
+    await into(gastosFijos).insert(gasto);
+  }
+
+  Future<void> actualizarGastoFijo(GastosFijosCompanion gasto) async {
+    await (update(gastosFijos)..where((g) => g.id.equals(gasto.id.value)))
+        .write(gasto);
+  }
+
+  Future<void> eliminarGastoFijo(int id) async {
+    await (delete(gastosFijos)..where((g) => g.id.equals(id))).go();
+  }
+
+  Future<double> totalGastosFijosActivos() async {
+    final activos = await (select(gastosFijos)
+          ..where((g) => g.activo.equals(true)))
+        .get();
+    return activos.fold<double>(0.0, (sum, g) => sum + g.monto);
   }
 }
 

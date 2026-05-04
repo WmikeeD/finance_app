@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:drift/drift.dart' as drift hide Column;
 import '../../core/database/database.dart';
+import '../../core/services/exportacion_service.dart';
 import '../../core/widgets/app_drawer.dart';
 import '../cuentas/cuentas_screen.dart';
 import '../../core/utils/formatters.dart';
@@ -19,11 +20,58 @@ class TransaccionesScreen extends StatefulWidget {
 class _TransaccionesScreenState extends State<TransaccionesScreen> {
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
 
+  // Filtros
+  String _busqueda = '';
+  String _filtroTipo = 'todos'; // 'todos', 'ingreso', 'egreso'
+  int? _cuentaIdFiltro;
+  DateTimeRange? _rangoFechas;
+
+  List<Transaccion> _aplicarFiltros(List<Transaccion> todas) {
+    return todas.where((t) {
+      if (_filtroTipo != 'todos' && t.tipo != _filtroTipo) return false;
+      if (_cuentaIdFiltro != null && t.cuentaId != _cuentaIdFiltro) return false;
+      if (_busqueda.isNotEmpty &&
+          !t.descripcion.toLowerCase().contains(_busqueda.toLowerCase())) {
+        return false;
+      }
+      if (_rangoFechas != null) {
+        if (t.fecha.isBefore(_rangoFechas!.start) ||
+            t.fecha.isAfter(_rangoFechas!.end.add(const Duration(days: 1)))) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transacciones'),
+        actions: [
+          StreamBuilder<List<Transaccion>>(
+            stream: widget.database.select(widget.database.transacciones).watch(),
+            builder: (_, snap) {
+              final todas = snap.data ?? [];
+              final transacciones = _aplicarFiltros(todas);
+              if (transacciones.isEmpty) return const SizedBox.shrink();
+              return PopupMenuButton<String>(
+                icon: const Icon(Icons.ios_share),
+                tooltip: 'Exportar',
+                onSelected: (fmt) => _exportar(fmt, transacciones),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'csv', child: Text('Exportar CSV')),
+                  PopupMenuItem(value: 'pdf', child: Text('Exportar PDF')),
+                ],
+              );
+            },
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(108),
+          child: _buildFiltrosBar(),
+        ),
       ),
       drawer: AppDrawer(
         database: widget.database,
@@ -47,19 +95,37 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          final transacciones = snapshot.data ?? [];
+          final todas = snapshot.data ?? [];
+          final transacciones = _aplicarFiltros(todas);
+
+          if (todas.isEmpty) return _buildEmptyState();
 
           if (transacciones.isEmpty) {
-            return _buildEmptyState();
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Sin resultados',
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _limpiarFiltros,
+                    child: const Text('Limpiar filtros'),
+                  ),
+                ],
+              ),
+            );
           }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: transacciones.length,
-            itemBuilder: (context, index) {
-              final transaccion = transacciones[index];
-              return _buildTransaccionCard(transaccion);
-            },
+            itemBuilder: (context, index) =>
+                _buildTransaccionCard(transacciones[index]),
           );
         },
       ),
@@ -69,6 +135,241 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
         label: const Text('Nueva Transacción'),
       ),
     );
+  }
+
+  Widget _buildFiltrosBar() {
+    final hayFiltros = _filtroTipo != 'todos' ||
+        _cuentaIdFiltro != null ||
+        _rangoFechas != null;
+
+    return Container(
+      color: Theme.of(context).appBarTheme.backgroundColor ??
+          Theme.of(context).colorScheme.surface,
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Column(
+        children: [
+          // Barra de búsqueda
+          TextField(
+            decoration: InputDecoration(
+              hintText: 'Buscar por descripción...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _busqueda.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () => setState(() => _busqueda = ''),
+                    )
+                  : null,
+              isDense: true,
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+            onChanged: (v) => setState(() => _busqueda = v),
+          ),
+          const SizedBox(height: 6),
+          // Chips de filtro
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildChip(
+                  label: 'Todos',
+                  selected: _filtroTipo == 'todos',
+                  onTap: () => setState(() => _filtroTipo = 'todos'),
+                ),
+                const SizedBox(width: 6),
+                _buildChip(
+                  label: 'Ingresos',
+                  selected: _filtroTipo == 'ingreso',
+                  color: Colors.green,
+                  onTap: () => setState(() => _filtroTipo = 'ingreso'),
+                ),
+                const SizedBox(width: 6),
+                _buildChip(
+                  label: 'Egresos',
+                  selected: _filtroTipo == 'egreso',
+                  color: Colors.red,
+                  onTap: () => setState(() => _filtroTipo = 'egreso'),
+                ),
+                const SizedBox(width: 6),
+                _buildCuentaChip(),
+                const SizedBox(width: 6),
+                _buildFechaChip(),
+                if (hayFiltros) ...[
+                  const SizedBox(width: 6),
+                  ActionChip(
+                    label: const Text('Limpiar'),
+                    avatar: const Icon(Icons.clear, size: 14),
+                    onPressed: _limpiarFiltros,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      selectedColor: (color ?? Theme.of(context).colorScheme.primary)
+          .withValues(alpha: 0.2),
+      checkmarkColor: color ?? Theme.of(context).colorScheme.primary,
+      onSelected: (_) => onTap(),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        color: selected
+            ? (color ?? Theme.of(context).colorScheme.primary)
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildCuentaChip() {
+    return StreamBuilder<List<Cuenta>>(
+      stream: widget.database.select(widget.database.cuentas).watch(),
+      builder: (_, snap) {
+        final cuentas = snap.data ?? [];
+        if (cuentas.isEmpty) return const SizedBox.shrink();
+
+        final nombreCuenta = _cuentaIdFiltro != null
+            ? cuentas
+                .firstWhere(
+                  (c) => c.id == _cuentaIdFiltro,
+                  orElse: () => cuentas.first,
+                )
+                .nombre
+            : null;
+
+        return FilterChip(
+          label: Text(nombreCuenta ?? 'Cuenta'),
+          selected: _cuentaIdFiltro != null,
+          avatar: const Icon(Icons.account_balance_wallet, size: 14),
+          onSelected: (_) => _showCuentaFilterSheet(cuentas),
+          labelStyle: const TextStyle(fontSize: 12),
+        );
+      },
+    );
+  }
+
+  Widget _buildFechaChip() {
+    final label = _rangoFechas != null
+        ? '${_dateFormat.format(_rangoFechas!.start)} – ${_dateFormat.format(_rangoFechas!.end)}'
+        : 'Fecha';
+
+    return FilterChip(
+      label: Text(label),
+      selected: _rangoFechas != null,
+      avatar: const Icon(Icons.date_range, size: 14),
+      onSelected: (_) => _showDateRangePicker(),
+      labelStyle: const TextStyle(fontSize: 12),
+    );
+  }
+
+  void _showCuentaFilterSheet(List<Cuenta> cuentas) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Filtrar por cuenta',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ),
+          ListTile(
+            title: const Text('Todas las cuentas'),
+            leading: const Icon(Icons.all_inclusive),
+            selected: _cuentaIdFiltro == null,
+            onTap: () {
+              setState(() => _cuentaIdFiltro = null);
+              Navigator.pop(context);
+            },
+          ),
+          ...cuentas.map((c) => ListTile(
+                title: Text(c.nombre),
+                subtitle: Text(c.tipo),
+                leading: const Icon(Icons.account_balance_wallet),
+                selected: _cuentaIdFiltro == c.id,
+                onTap: () {
+                  setState(() => _cuentaIdFiltro = c.id);
+                  Navigator.pop(context);
+                },
+              )),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDateRangePicker() async {
+    final rango = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialDateRange: _rangoFechas,
+      locale: const Locale('es', 'ES'),
+      helpText: 'Selecciona rango de fechas',
+      cancelText: 'Cancelar',
+      confirmText: 'Aplicar',
+    );
+    if (rango != null) setState(() => _rangoFechas = rango);
+  }
+
+  void _limpiarFiltros() {
+    setState(() {
+      _busqueda = '';
+      _filtroTipo = 'todos';
+      _cuentaIdFiltro = null;
+      _rangoFechas = null;
+    });
+  }
+
+  Future<void> _exportar(String formato, List<Transaccion> transacciones) async {
+    final categorias = await widget.database.select(widget.database.categorias).get();
+    final cuentas = await widget.database.select(widget.database.cuentas).get();
+
+    final periodo = _rangoFechas != null
+        ? '${_dateFormat.format(_rangoFechas!.start)} – ${_dateFormat.format(_rangoFechas!.end)}'
+        : null;
+
+    if (!mounted) return;
+
+    try {
+      if (formato == 'csv') {
+        await ExportacionService.exportarTransaccionesCSV(
+          transacciones: transacciones,
+          categorias: categorias,
+          cuentas: cuentas,
+          periodoLabel: periodo,
+        );
+      } else {
+        await ExportacionService.exportarTransaccionesPDF(
+          transacciones: transacciones,
+          categorias: categorias,
+          cuentas: cuentas,
+          periodoLabel: periodo,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al exportar: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildEmptyState() {

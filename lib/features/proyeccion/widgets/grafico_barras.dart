@@ -160,6 +160,6 @@ class GraficoBarras extends StatelessWidget {
       if (total > max) max = total;
     }
     if (sueldo != null && sueldo! > max) max = sueldo!;
-    return max * 1.1; // 10% de margen
+    return max == 0 ? 1 : max * 1.1;
   }
 }

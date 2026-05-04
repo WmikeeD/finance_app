@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/database/database.dart';
+import '../../../core/utils/formatters.dart';
 
 class HeaderControls extends StatelessWidget {
   final DateTime mesInicio;
@@ -9,14 +10,13 @@ class HeaderControls extends StatelessWidget {
   final double? sueldo;
   final bool incluirPrestamos;
   final Set<int> prestamosSeleccionados;
-  final double? gastosFijos; 
-  
+
   final Function(DateTime) onMesInicioChanged;
   final Function(int?) onCuentaChanged;
   final Function(int) onMesesChanged;
+  final ValueChanged<bool> onGastosFijosChanged;
   final Function(double?) onSueldoChanged;
   final Function((bool, Set<int>)) onPrestamosChanged;
-  final ValueChanged<double?> onGastosFijosChanged;
 
   final AppDatabase database;
 
@@ -36,13 +36,12 @@ class HeaderControls extends StatelessWidget {
     required this.onSueldoChanged,
     required this.onPrestamosChanged,
     required this.database,
-    required this.gastosFijos,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 80, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 80, 16, 12),
       color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -50,19 +49,15 @@ class HeaderControls extends StatelessWidget {
           // Fila 1: Selectores principales
           Row(
             children: [
-              // Mes inicio
               Expanded(
                 child: _buildDropdown<DateTime>(
                   label: 'Desde',
                   value: mesInicio,
                   items: _generarMesesInicio(),
                   onChanged: (v) => v != null ? onMesInicioChanged(v) : null,
-                  displayText: (d) => '${_mesNombre(d.month)} ${d.year}',
                 ),
               ),
               const SizedBox(width: 8),
-              
-              // Cuenta
               Expanded(
                 child: StreamBuilder<List<Cuenta>>(
                   stream: database.select(database.cuentas).watch(),
@@ -72,11 +67,13 @@ class HeaderControls extends StatelessWidget {
                       label: 'Cuenta',
                       value: cuentaId,
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('Todas')),
+                        const DropdownMenuItem(
+                            value: null, child: Text('Todas')),
                         ...cuentas.map((c) => DropdownMenuItem(
-                          value: c.id,
-                          child: Text(c.nombre, overflow: TextOverflow.ellipsis),
-                        )),
+                              value: c.id,
+                              child: Text(c.nombre,
+                                  overflow: TextOverflow.ellipsis),
+                            )),
                       ],
                       onChanged: onCuentaChanged,
                     );
@@ -84,51 +81,111 @@ class HeaderControls extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              
-              // Meses a ver
               Expanded(
                 child: _buildDropdown<int>(
                   label: 'Meses',
                   value: mesesAVer,
                   items: List.generate(12, (i) => i + 1)
-                      .map((n) => DropdownMenuItem(value: n, child: Text('$n')))
+                      .map((n) =>
+                          DropdownMenuItem(value: n, child: Text('$n')))
                       .toList(),
                   onChanged: (v) => v != null ? onMesesChanged(v) : null,
                 ),
               ),
             ],
           ),
-          
-          const SizedBox(height: 12),
-          
-          // Fila 2: Checkboxes de configuración
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            children: [
-              // Gastos fijos
-              _buildCheckbox(
-                label: 'Gastos fijos',
-                value: gastosFijos != null,
-                onChanged: (v) => onGastosFijosChanged(v ? 0 : null),
-                trailing: gastosFijos != null 
-                  ? _buildMontoInput(onGastosFijosChanged)
-                  : null,
-              ),
-              
-              // Sueldo
-              _buildCheckbox(
-                label: 'Sueldo',
-                value: sueldo != null,
-                onChanged: (v) => onSueldoChanged(v ? 0 : null),
-                trailing: sueldo != null
-                  ? _buildMontoInput(onSueldoChanged)
-                  : null,
-              ),
-              
-              // Préstamos a cobrar
-              _buildPrestamosCheckbox(),
-            ],
+
+          const SizedBox(height: 10),
+
+          // Fila 2: Opciones adicionales
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // Gastos fijos (auto-carga desde DB)
+                StreamBuilder<List<GastoFijo>>(
+                  stream: database.watchGastosFijos(soloActivos: true),
+                  builder: (context, snapshot) {
+                    final gastos = snapshot.data ?? [];
+                    final total =
+                        gastos.fold<double>(0, (s, g) => s + g.monto);
+                    final hayGastos = gastos.isNotEmpty;
+
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Checkbox(
+                          value: incluirGastosFijos && hayGastos,
+                          onChanged: hayGastos
+                              ? (v) => onGastosFijosChanged(v ?? false)
+                              : null,
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Gastos fijos',
+                              style: TextStyle(
+                                color: hayGastos ? null : Colors.grey,
+                              ),
+                            ),
+                            if (hayGastos)
+                              Text(
+                                Formatters.monedaConSimbolo(total),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                              )
+                            else
+                              const Text(
+                                'Sin registros',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(width: 16),
+                      ],
+                    );
+                  },
+                ),
+
+                // Sueldo (input manual)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Checkbox(
+                      value: sueldo != null,
+                      onChanged: (v) =>
+                          onSueldoChanged((v ?? false) ? 0 : null),
+                    ),
+                    const Text('Sueldo'),
+                    if (sueldo != null) ...[
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 110,
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            prefixText: '\$ ',
+                            isDense: true,
+                            hintText: '0',
+                          ),
+                          onChanged: (v) =>
+                              onSueldoChanged(double.tryParse(v)),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 16),
+                  ],
+                ),
+
+                // Préstamos a cobrar
+                _buildPrestamosCheckbox(),
+              ],
+            ),
           ),
         ],
       ),
@@ -140,13 +197,13 @@ class HeaderControls extends StatelessWidget {
     required T value,
     required List<DropdownMenuItem<T>> items,
     required Function(T?) onChanged,
-    String Function(T)? displayText,
   }) {
     return InputDecorator(
       decoration: InputDecoration(
         labelText: label,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: DropdownButtonHideUnderline(
@@ -160,39 +217,6 @@ class HeaderControls extends StatelessWidget {
     );
   }
 
-  Widget _buildCheckbox({
-    required String label,
-    required bool value,
-    required Function(bool) onChanged,
-    Widget? trailing,
-  }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Checkbox(
-          value: value,
-          onChanged: (v) => onChanged(v ?? false),
-        ),
-        Text(label),
-        if (trailing != null) ...[
-          const SizedBox(width: 8),
-          SizedBox(width: 100, child: trailing),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildMontoInput(ValueChanged<double?> onChanged) {
-    return TextField(
-      keyboardType: TextInputType.number,
-      decoration: const InputDecoration(
-        prefixText: '\$ ',
-        isDense: true,
-      ),
-      onChanged: (v) => onChanged(double.tryParse(v)),
-    );
-  }
-
   Widget _buildPrestamosCheckbox() {
     return PopupMenuButton<bool>(
       child: Row(
@@ -200,15 +224,15 @@ class HeaderControls extends StatelessWidget {
         children: [
           Checkbox(
             value: incluirPrestamos,
-            onChanged: null, // Controlado por el popup
+            onChanged: null,
           ),
           const Text('Préstamos'),
           const Icon(Icons.arrow_drop_down, size: 20),
         ],
       ),
       itemBuilder: (context) => [
-        // Aquí iría la lista de préstamos pendientes
         PopupMenuItem(
+          enabled: false,
           child: StreamBuilder<List<Deuda>>(
             stream: (database.select(database.deudas)
                   ..where((d) => d.estado.isNotIn(['pagada'])))
@@ -216,23 +240,32 @@ class HeaderControls extends StatelessWidget {
             builder: (context, snapshot) {
               final deudas = snapshot.data ?? [];
               if (deudas.isEmpty) {
-                return const Text('No hay préstamos pendientes');
+                return const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text('No hay préstamos pendientes'),
+                );
               }
               return Column(
-                children: deudas.map((d) => CheckboxListTile(
-                  title: Text('Deuda #${d.id}'),
-                  subtitle: Text('\$${d.montoPendiente}'),
-                  value: prestamosSeleccionados.contains(d.id),
-                  onChanged: (v) {
-                    final nuevoSet = Set<int>.from(prestamosSeleccionados);
-                    if (v == true) {
-                      nuevoSet.add(d.id);
-                    } else {
-                      nuevoSet.remove(d.id);
-                    }
-                    onPrestamosChanged((nuevoSet.isNotEmpty, nuevoSet));
-                  },
-                )).toList(),
+                children: deudas
+                    .map((d) => CheckboxListTile(
+                          dense: true,
+                          title: Text('Deuda #${d.id}'),
+                          subtitle:
+                              Text(Formatters.monedaConSimbolo(d.montoPendiente)),
+                          value: prestamosSeleccionados.contains(d.id),
+                          onChanged: (v) {
+                            final nuevoSet =
+                                Set<int>.from(prestamosSeleccionados);
+                            if (v == true) {
+                              nuevoSet.add(d.id);
+                            } else {
+                              nuevoSet.remove(d.id);
+                            }
+                            onPrestamosChanged(
+                                (nuevoSet.isNotEmpty, nuevoSet));
+                          },
+                        ))
+                    .toList(),
               );
             },
           ),
@@ -242,19 +275,21 @@ class HeaderControls extends StatelessWidget {
   }
 
   List<DropdownMenuItem<DateTime>> _generarMesesInicio() {
-  final ahora = DateTime.now();
-  return List.generate(12, (i) {
-    // Asegurar día 1, sin hora
-    final mes = DateTime(ahora.year, ahora.month + i, 1);
-    return DropdownMenuItem(
-      value: mes,
-      child: Text('${_mesNombre(mes.month)} ${mes.year}'),
-    );
-  });
-}
+    final ahora = DateTime.now();
+    return List.generate(12, (i) {
+      final mes = DateTime(ahora.year, ahora.month + i, 1);
+      return DropdownMenuItem(
+        value: mes,
+        child: Text('${_mesNombre(mes.month)} ${mes.year}'),
+      );
+    });
+  }
 
   String _mesNombre(int mes) {
-    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const meses = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+    ];
     return meses[mes - 1];
   }
 }

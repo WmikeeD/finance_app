@@ -5,6 +5,8 @@ import '../../features/categorias/categorias_screen.dart';
 import '../../features/personas/personas_screen.dart';
 import '../../features/transacciones/transacciones_screen.dart';
 import '../../features/configuracion/configuracion_screen.dart';
+import '../../features/gastos_fijos/gastos_fijos_screen.dart';
+import '../../features/reportes/reportes_screen.dart';
 import '../database/database.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -61,6 +63,20 @@ class AppDrawer extends StatelessWidget {
             title: 'Transacciones',
             route: '/transacciones',
             screen: TransaccionesScreen(database: database),
+          ),
+          _buildMenuItem(
+            context: context,
+            icon: Icons.repeat,
+            title: 'Gastos Fijos',
+            route: '/gastos_fijos',
+            screen: GastosFijosScreen(database: database),
+          ),
+          _buildMenuItem(
+            context: context,
+            icon: Icons.bar_chart,
+            title: 'Reportes',
+            route: '/reportes',
+            screen: ReportesScreen(database: database),
           ),
           const Divider(height: 1),
           _buildSectionTitle('Configuración'),
