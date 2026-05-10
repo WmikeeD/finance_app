@@ -3,7 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/database/database.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
-import 'features/home/home_screen.dart';
+import 'core/widgets/app_shell.dart';
 import 'features/proyeccion/proyeccion_screen.dart';
 
 void main() async {
@@ -120,7 +120,7 @@ class _MyAppState extends State<MyApp> {
         '/proyeccion': (context) =>
             ProyeccionScreen(database: widget.database),
       },
-      home: HomeScreen(database: widget.database),
+      home: AppShell(database: widget.database),
     );
   }
 }

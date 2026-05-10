@@ -4,7 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:drift/drift.dart' as drift hide Column;
 import '../../core/database/database.dart';
 import '../../core/services/exportacion_service.dart';
-import '../../core/widgets/app_drawer.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/widgets.dart';
 import '../cuentas/cuentas_screen.dart';
 import '../../core/utils/formatters.dart';
 
@@ -25,6 +26,9 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
   String _filtroTipo = 'todos'; // 'todos', 'ingreso', 'egreso'
   int? _cuentaIdFiltro;
   DateTimeRange? _rangoFechas;
+
+  // Paginación de display
+  int _displayLimit = 50;
 
   List<Transaccion> _aplicarFiltros(List<Transaccion> todas) {
     return todas.where((t) {
@@ -73,10 +77,6 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
           child: _buildFiltrosBar(),
         ),
       ),
-      drawer: AppDrawer(
-        database: widget.database,
-        currentRoute: '/transacciones',
-      ),
       body: StreamBuilder<List<Transaccion>>(
         stream: (widget.database.select(widget.database.transacciones)
               ..orderBy([
@@ -92,7 +92,7 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return AppErrorState(error: snapshot.error);
           }
 
           final todas = snapshot.data ?? [];
@@ -101,31 +101,39 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
           if (todas.isEmpty) return _buildEmptyState();
 
           if (transacciones.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Sin resultados',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: _limpiarFiltros,
-                    child: const Text('Limpiar filtros'),
-                  ),
-                ],
-              ),
+            return AppEmptyState(
+              icon: Icons.search_off,
+              title: 'Sin resultados',
+              subtitle: 'Prueba con otros filtros',
+              buttonLabel: 'Limpiar filtros',
+              onAction: _limpiarFiltros,
             );
           }
 
+          final visibles = transacciones.take(_displayLimit).toList();
+          final hayMas = transacciones.length > _displayLimit;
+
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: transacciones.length,
-            itemBuilder: (context, index) =>
-                _buildTransaccionCard(transacciones[index]),
+            padding: const EdgeInsets.all(AppSpacing.base),
+            itemCount: visibles.length + (hayMas ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == visibles.length) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
+                  child: Center(
+                    child: TextButton.icon(
+                      onPressed: () =>
+                          setState(() => _displayLimit += 50),
+                      icon: const Icon(Icons.expand_more),
+                      label: Text(
+                        'Cargar más (${transacciones.length - _displayLimit} restantes)',
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return _buildTransaccionCard(visibles[index]);
+            },
           );
         },
       ),
@@ -185,14 +193,14 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                 _buildChip(
                   label: 'Ingresos',
                   selected: _filtroTipo == 'ingreso',
-                  color: Colors.green,
+                  color: AppTheme.incomeColor,
                   onTap: () => setState(() => _filtroTipo = 'ingreso'),
                 ),
                 const SizedBox(width: 6),
                 _buildChip(
                   label: 'Egresos',
                   selected: _filtroTipo == 'egreso',
-                  color: Colors.red,
+                  color: AppTheme.expenseColor,
                   onTap: () => setState(() => _filtroTipo = 'egreso'),
                 ),
                 const SizedBox(width: 6),
@@ -334,6 +342,7 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
       _filtroTipo = 'todos';
       _cuentaIdFiltro = null;
       _rangoFechas = null;
+      _displayLimit = 50;
     });
   }
 
@@ -366,119 +375,90 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al exportar: $e')),
+          SnackBar(
+            content: Text('Error al exportar: $e'),
+            backgroundColor: AppTheme.alertDanger,
+          ),
         );
       }
     }
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.receipt_long_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No hay transacciones registradas',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Comienza registrando tu primera transacción',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showAddTransaccionDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Agregar Transacción'),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.receipt_long_outlined,
+      title: 'No hay transacciones registradas',
+      subtitle: 'Comienza registrando tu primera transacción',
+      buttonLabel: 'Agregar Transacción',
+      onAction: () => _showAddTransaccionDialog(),
     );
   }
 
   Widget _buildTransaccionCard(Transaccion transaccion) {
     final isIngreso = transaccion.tipo == 'ingreso';
-    final color = isIngreso ? Colors.green : Colors.red;
+    final color = isIngreso ? AppTheme.incomeColor : AppTheme.expenseColor;
+    final theme = Theme.of(context);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            isIngreso ? Icons.arrow_downward : Icons.arrow_upward,
-            color: color,
-          ),
+        leading: AppSemanticIcon(
+          icon: isIngreso ? Icons.arrow_downward : Icons.arrow_upward,
+          color: color,
+          size: AppIconSize.sm,
         ),
         title: Text(
           transaccion.descripcion,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: theme.textTheme.labelLarge,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               _dateFormat.format(transaccion.fecha),
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
             ),
             if (transaccion.formaPago == 'credito')
               Row(
                 children: [
-                  Icon(Icons.credit_card, size: 12, color: Colors.grey[600]),
+                  Icon(Icons.credit_card, size: 12,
+                      color: theme.colorScheme.outline),
                   const SizedBox(width: 4),
                   Text(
                     '${transaccion.cantidadCuotas} cuotas',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
             if (transaccion.esPrestamo)
               Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                margin: const EdgeInsets.only(top: AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.orange[50],
-                  borderRadius: BorderRadius.circular(4),
+                  color: AppTheme.alertCaution.withValues(alpha: 0.12),
+                  borderRadius: AppRadius.smBR,
                 ),
                 child: Text(
                   'PRÉSTAMO',
-                  style: TextStyle(
-                    fontSize: 9,
+                  style: theme.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange[700],
+                    color: AppTheme.alertWarning,
+                    fontSize: 9,
                   ),
                 ),
               ),
           ],
         ),
         trailing: Text(
-          '${isIngreso ? '+' : '-'}\$${transaccion.montoTotal.toStringAsFixed(0)}',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          '${isIngreso ? '+' : '-'}${Formatters.monedaConSimbolo(transaccion.montoTotal)}',
+          style: theme.textTheme.titleMedium?.copyWith(color: color),
         ),
         onTap: () => _showTransaccionDetails(transaccion),
-        // Botón de editar
         onLongPress: () => _showEditTransaccionDialog(transaccion),
       ),
     );
@@ -489,6 +469,9 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
     final cuentas = await widget.database.select(widget.database.cuentas).get();
     final categorias = await widget.database.select(widget.database.categorias).get();
     final personas = await widget.database.select(widget.database.personas).get();
+    final todasDeudas = await (widget.database.select(widget.database.deudas)
+          ..where((d) => d.estado.isNotIn(['pagada'])))
+        .get();
 
     if (!mounted) return;
 
@@ -524,15 +507,21 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
     final montoController = TextEditingController();
     final cuotasController = TextEditingController();
     final valorCuotaController = TextEditingController();
-    final tasaInteresController = TextEditingController();
-    
     // Variables de estado
     String tipoTransaccion = 'egreso';
     String formaPago = 'debito';
     bool esPrestamo = false;
+    bool gastoCompartido = false;
+    Set<int> personasCompartidasIds = {};
+    bool incluirme = true;
     Cuenta? cuentaSeleccionada = cuentas.first;
     Categoria? categoriaSeleccionada = categorias.where((c) => c.tipo == 'egreso').first;
     Persona? personaSeleccionada;
+    // Cobro de préstamo (solo ingresos)
+    bool esCobro = false;
+    Persona? personaCobro;
+    Deuda? deudaCobro;
+    List<Deuda> deudasPersonaCobro = [];
 
     showDialog(
       context: context,
@@ -553,7 +542,8 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                 children: [
                   // Tipo de transacción
                   DropdownButtonFormField<String>(
-                    value: tipoTransaccion,
+                    key: ValueKey(tipoTransaccion),
+                    initialValue: tipoTransaccion,
                     decoration: const InputDecoration(
                       labelText: 'Tipo',
                       prefixIcon: Icon(Icons.swap_vert),
@@ -569,6 +559,13 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                         final nuevasCategorias = categorias.where((c) => c.tipo == tipoTransaccion).toList();
                         if (nuevasCategorias.isNotEmpty) {
                           categoriaSeleccionada = nuevasCategorias.first;
+                        }
+                        // Limpiar cobro si cambia a egreso
+                        if (tipoTransaccion == 'egreso') {
+                          esCobro = false;
+                          personaCobro = null;
+                          deudaCobro = null;
+                          deudasPersonaCobro = [];
                         }
                       });
                     },
@@ -603,7 +600,8 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
 
                   // Cuenta
                   DropdownButtonFormField<Cuenta>(
-                    value: cuentaSeleccionada,
+                    key: ValueKey(cuentaSeleccionada),
+                    initialValue: cuentaSeleccionada,
                     decoration: const InputDecoration(
                       labelText: 'Cuenta',
                       prefixIcon: Icon(Icons.account_balance_wallet),
@@ -628,7 +626,8 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
 
                   // Categoría
                   DropdownButtonFormField<Categoria>(
-                    value: categoriaSeleccionada,
+                    key: ValueKey(categoriaSeleccionada),
+                    initialValue: categoriaSeleccionada,
                     decoration: const InputDecoration(
                       labelText: 'Categoría',
                       prefixIcon: Icon(Icons.category),
@@ -647,10 +646,98 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                   ),
                   const SizedBox(height: 16),
 
+                  // ── Cobro de préstamo (solo ingresos) ────────────────────
+                  if (tipoTransaccion == 'ingreso') ...[
+                    const Divider(),
+                    CheckboxListTile(
+                      title: const Text('Es cobro de préstamo'),
+                      subtitle: const Text('Vincula este ingreso al pago de una deuda'),
+                      value: esCobro,
+                      onChanged: (v) => setDialogState(() {
+                        esCobro = v ?? false;
+                        if (!esCobro) {
+                          personaCobro = null;
+                          deudaCobro = null;
+                          deudasPersonaCobro = [];
+                        }
+                      }),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    if (esCobro) ...[
+                      if (personas.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            'No hay personas registradas.',
+                            style: TextStyle(color: Colors.red[700], fontSize: 12),
+                          ),
+                        )
+                      else
+                        DropdownButtonFormField<Persona>(
+                          key: ValueKey(personaCobro),
+                          initialValue: personaCobro,
+                          decoration: const InputDecoration(
+                            labelText: 'Persona que paga',
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          items: personas
+                              .map((p) => DropdownMenuItem(
+                                    value: p,
+                                    child: Text(p.nombre),
+                                  ))
+                              .toList(),
+                          onChanged: (v) => setDialogState(() {
+                            personaCobro = v;
+                            deudaCobro = null;
+                            deudasPersonaCobro = todasDeudas
+                                .where((d) => d.personaId == v?.id)
+                                .toList();
+                          }),
+                        ),
+                      if (personaCobro != null) ...[
+                        const SizedBox(height: 16),
+                        if (deudasPersonaCobro.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              '${personaCobro!.nombre} no tiene deudas pendientes.',
+                              style: TextStyle(
+                                  color: Colors.orange[700], fontSize: 12),
+                            ),
+                          )
+                        else
+                          DropdownButtonFormField<Deuda>(
+                            key: ValueKey(deudaCobro),
+                            initialValue: deudaCobro,
+                            decoration: const InputDecoration(
+                              labelText: 'Deuda a saldar',
+                              prefixIcon: Icon(Icons.receipt_long),
+                            ),
+                            items: deudasPersonaCobro
+                                .map((d) => DropdownMenuItem(
+                                      value: d,
+                                      child: Text(
+                                        '${Formatters.monedaConSimbolo(d.montoPendiente)} — ${d.tipo == 'cuotas' ? 'cuotas' : 'pago único'}',
+                                      ),
+                                    ))
+                                .toList(),
+                            onChanged: (v) => setDialogState(() {
+                              deudaCobro = v;
+                              if (v != null) {
+                                montoController.text =
+                                    v.montoPendiente.toStringAsFixed(2);
+                              }
+                            }),
+                          ),
+                      ],
+                    ],
+                  ],
+
                   // Forma de pago (solo si la cuenta lo permite)
                   if (permiteCuotas) ...[
                     DropdownButtonFormField<String>(
-                      value: formaPago,
+                      key: ValueKey(formaPago),
+                      initialValue: formaPago,
                       decoration: const InputDecoration(
                         labelText: 'Forma de pago',
                         prefixIcon: Icon(Icons.payment),
@@ -722,6 +809,10 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                     onChanged: (value) {
                       setDialogState(() {
                         esPrestamo = value ?? false;
+                        if (esPrestamo) {
+                          gastoCompartido = false;
+                          personasCompartidasIds.clear();
+                        }
                       });
                     },
                     contentPadding: EdgeInsets.zero,
@@ -739,7 +830,8 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                       )
                     else
                       DropdownButtonFormField<Persona>(
-                        value: personaSeleccionada,
+                        key: ValueKey(personaSeleccionada),
+                        initialValue: personaSeleccionada,
                         decoration: const InputDecoration(
                           labelText: 'Persona que debe',
                           prefixIcon: Icon(Icons.person),
@@ -757,6 +849,97 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                         },
                       ),
                   ],
+
+                  // ── Gasto compartido (solo egresos, incompatible con préstamo) ─
+                  if (tipoTransaccion == 'egreso' && !esPrestamo) ...[
+                    const Divider(),
+                    CheckboxListTile(
+                      title: const Text('Gasto compartido'),
+                      subtitle: const Text('Divide el gasto entre varias personas'),
+                      value: gastoCompartido,
+                      onChanged: (v) => setDialogState(() {
+                        gastoCompartido = v ?? false;
+                        if (!gastoCompartido) personasCompartidasIds.clear();
+                      }),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    if (gastoCompartido) ...[
+                      if (personas.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            'No hay personas registradas para compartir el gasto.',
+                            style: TextStyle(color: Colors.red[700], fontSize: 12),
+                          ),
+                        )
+                      else ...[
+                        const SizedBox(height: 4),
+                        ...personas.map((p) => CheckboxListTile(
+                              title: Text(p.nombre),
+                              value: personasCompartidasIds.contains(p.id),
+                              onChanged: (v) => setDialogState(() {
+                                if (v == true) {
+                                  personasCompartidasIds.add(p.id);
+                                } else {
+                                  personasCompartidasIds.remove(p.id);
+                                }
+                              }),
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 0),
+                            )),
+                        SwitchListTile(
+                          title: const Text('Incluirme en el reparto'),
+                          value: incluirme,
+                          onChanged: (v) => setDialogState(() => incluirme = v),
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                        ),
+                        if (personasCompartidasIds.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Builder(builder: (ctx) {
+                            final total = double.tryParse(montoController.text) ?? 0.0;
+                            final n = personasCompartidasIds.length + (incluirme ? 1 : 0);
+                            final share = n > 0 ? total / n : 0.0;
+                            return Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                children: [
+                                  ...personas
+                                      .where((p) => personasCompartidasIds.contains(p.id))
+                                      .map((p) => Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(p.nombre, style: Theme.of(ctx).textTheme.bodySmall),
+                                              Text(Formatters.monedaConSimbolo(share),
+                                                  style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
+                                                        fontWeight: FontWeight.bold,
+                                                      )),
+                                            ],
+                                          )),
+                                  if (incluirme)
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('Yo', style: Theme.of(ctx).textTheme.bodySmall),
+                                        Text(Formatters.monedaConSimbolo(share),
+                                            style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppTheme.incomeColor,
+                                                )),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ],
+                    ],
+                  ],
                 ],
               ),
             ),
@@ -767,6 +950,16 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
               ),
               ElevatedButton(
                 onPressed: () async {
+                  final total = double.tryParse(montoController.text) ?? 0.0;
+                  final n = personasCompartidasIds.length + (incluirme ? 1 : 0);
+                  final double share = n > 0 ? total / n : 0.0;
+                  final List<({Persona persona, double monto})>? personasCompartidas = gastoCompartido
+                      ? personas
+                          .where((p) => personasCompartidasIds.contains(p.id))
+                          .map((p) => (persona: p, monto: share))
+                          .toList()
+                      : null;
+
                   await _guardarTransaccion(
                     context: context,
                     descripcion: descripcionController.text,
@@ -779,6 +972,8 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                     persona: personaSeleccionada,
                     cuotas: cuotasController.text,
                     valorCuota: valorCuotaController.text,
+                    gastosCompartidos: personasCompartidas,
+                    deudaCobro: deudaCobro,
                   );
                 },
                 child: const Text('Guardar'),
@@ -867,7 +1062,8 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
 
                   // Categoría
                   DropdownButtonFormField<Categoria>(
-                    value: categoriaSeleccionada,
+                    key: ValueKey(categoriaSeleccionada),
+                    initialValue: categoriaSeleccionada,
                     decoration: const InputDecoration(
                       labelText: 'Categoría',
                       prefixIcon: Icon(Icons.category),
@@ -1064,6 +1260,8 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
     required Persona? persona,
     required String cuotas,
     required String valorCuota,
+    List<({Persona persona, double monto})>? gastosCompartidos,
+    Deuda? deudaCobro,
   }) async {
     
     // Si es a crédito, validar campos de cuotas
@@ -1189,6 +1387,31 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
         );
       }
 
+      // Gastos compartidos: sub-transacciones por persona sin tocar el saldo
+      if (gastosCompartidos != null && gastosCompartidos.isNotEmpty) {
+        for (final compartido in gastosCompartidos) {
+          final subId = await widget.database.into(widget.database.transacciones).insert(
+            TransaccionesCompanion.insert(
+              tipo: 'egreso',
+              descripcion: '$descripcion (${compartido.persona.nombre})',
+              montoTotal: compartido.monto,
+              formaPago: 'debito',
+              fecha: DateTime.now(),
+              cuentaId: cuenta.id,
+              categoriaId: categoria.id,
+              esPrestamo: const drift.Value(true),
+              personaId: drift.Value(compartido.persona.id),
+            ),
+          );
+          await _crearDeudaDesdeTransaccion(
+            personaId: compartido.persona.id,
+            transaccionId: subId,
+            tipo: 'simple',
+            montoTotal: compartido.monto,
+          );
+        }
+      }
+
       // 3. Actualizar saldo de la cuenta ✅ cuenta no es null
       double nuevoSaldo = cuenta.saldo;
       
@@ -1205,6 +1428,15 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
       await widget.database.update(widget.database.cuentas).replace(
         cuenta.copyWith(saldo: nuevoSaldo),
       );
+
+      // Vincular con deuda si es un cobro de préstamo
+      if (deudaCobro != null) {
+        await widget.database.vincularPagoConDeuda(
+          deudaId: deudaCobro.id,
+          transaccionId: transaccionId,
+          monto: montoValue,
+        );
+      }
     });
 
     if (context.mounted) {
@@ -1361,121 +1593,6 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
       return DateTime(year, month + 2, diaPago);
     }
   }
-  /*Future<void> _guardarTransaccion({
-    required BuildContext context,
-    required String descripcion,
-    required String monto,
-    required String tipo,
-    required String formaPago,
-    required Cuenta? cuenta,
-    required Categoria? categoria,
-    required bool esPrestamo,
-    required Persona? persona,
-    required String cuotas,
-    required String valorCuota,
-  }) async {
-    // Validaciones
-    if (descripcion.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresa una descripción')),
-      );
-      return;
-    }
-
-    final montoValue = double.tryParse(monto);
-    if (montoValue == null || montoValue <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresa un monto válido')),
-      );
-      return;
-    }
-
-    if (cuenta == null || categoria == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona cuenta y categoría')),
-      );
-      return;
-    }
-
-    if (esPrestamo && persona == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona la persona que debe el préstamo')),
-      );
-      return;
-    }
-
-    // Si es a crédito, validar campos de cuotas
-    int? cantidadCuotas;
-    double? valorCuotaValue;
-    double? montoConInteres;
-    double? interesTotal;
-
-    if (formaPago == 'credito') {
-      cantidadCuotas = int.tryParse(cuotas);
-      valorCuotaValue = double.tryParse(valorCuota);
-
-      if (cantidadCuotas == null || cantidadCuotas <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ingresa un número de cuotas válido')),
-        );
-        return;
-      }
-
-      if (valorCuotaValue == null || valorCuotaValue <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ingresa el valor de la cuota')),
-        );
-        return;
-      }
-
-      // Calcular monto con interés e interés total
-      montoConInteres = valorCuotaValue * cantidadCuotas;
-      interesTotal = montoConInteres - montoValue;
-    }
-
-    // Crear transacción
-    final transaccionId = await widget.database.into(widget.database.transacciones).insert(
-      TransaccionesCompanion.insert(
-        tipo: tipo,
-        descripcion: descripcion,
-        montoTotal: montoValue,
-        formaPago: formaPago,
-        fecha: DateTime.now(),
-        cuentaId: cuenta.id,
-        categoriaId: categoria.id,
-        esPrestamo: drift.Value(esPrestamo),
-        personaId: drift.Value(persona?.id),
-        cantidadCuotas: drift.Value(cantidadCuotas),
-        valorCuota: drift.Value(valorCuotaValue),
-        montoTotalConInteres: drift.Value(montoConInteres),
-        interesTotal: drift.Value(interesTotal),
-      ),
-    );
-
-    // Si es a crédito, crear las cuotas
-    if (formaPago == 'credito' && cantidadCuotas != null && valorCuotaValue != null) {
-      for (int i = 1; i <= cantidadCuotas; i++) {
-        final fechaVencimiento = DateTime.now().add(Duration(days: 30 * i));
-        
-        await widget.database.into(widget.database.cuotas).insert(
-          CuotasCompanion.insert(
-            transaccionId: transaccionId,
-            numeroCuota: i,
-            monto: valorCuotaValue,
-            fechaVencimiento: fechaVencimiento,
-          ),
-        );
-      }
-    }
-
-    if (context.mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Transacción registrada exitosamente')),
-      );
-    }
-  }*/
-
   void _showTransaccionDetails(Transaccion transaccion) {
     showDialog(
       context: context,
@@ -1582,40 +1699,6 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
             },
             child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
           ),
-          /*TextButton(
-            onPressed: () async {
-              final confirmar = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Confirmar eliminación'),
-                  content: const Text('¿Estás seguro de eliminar esta transacción?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancelar'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
-                ),
-              );
-              
-              if (confirmar == true && context.mounted) {
-                await (widget.database.delete(widget.database.transacciones)
-                      ..where((t) => t.id.equals(transaccion.id)))
-                    .go();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Transacción eliminada')),
-                  );
-                }
-              }
-            },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-          ),*/
         ],
       ),
     );

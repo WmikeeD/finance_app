@@ -1,0 +1,23 @@
+Test Aplicacion de finanzas:
+
+Al momento de ingresar a cualquier al dashboard desde el menu lateral, ingresa al dashboard
+pero me aparece la opcion de regresar en la parte superiro izquierda y al presionarlo 
+ingresa al dashboard original con el tab en la parte inferior, al presionar dashboard desde
+el menu lateral deberia de ingresar al dashboard correcto como pantalla principal.
+
+No presenta consistencia las pantallas al ingresar desde el tab inferior, que ingresando desde
+las tarjetas del menu principal, es decir del dashboard.
+
+Esta oculto la opcion de agregar categorias desde el menu principal el cual corresponde al dashboard.
+
+No existe forma de enlazar un ingreso con un pago de un prestamo o como realizar un pago de una deuda directamente.
+
+Se debe agregar una funcionalidad para realizar un gasto, y poder seleccionar que es un gasto compartido,
+debe permitir agregar a todas las personas en quien se divide el gasto, cada uno con un monto independiente pero
+que se pueda automatizar el gasto equitativo, es decir que el sistema calcule el valor a pagar de cada uno dividiendo
+el gasto total segun la cantidad de personas, a su vez tambien debe permitir el ingreso manual a pagar por persona, 
+entre esas personas se debe permitir incluir a mi mismo o quitarme en caso de ser solo un prestamo compartido.
+
+Al presionar el icono de notificaciones, se lleva al menu de configuracion, este comportamiento es incorrecto
+al presionar el icono de la campana correspondiente a las notificaciones, deberia de abrir el menu de notificaciones
+el cual debe listar las notificaciones.

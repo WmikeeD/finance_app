@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-//import 'package:intl/intl.dart';
 import 'package:drift/drift.dart' hide Column;
 import '../../core/database/database.dart';
-import '../../core/widgets/app_drawer.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/widgets.dart';
+import '../../core/navigation/app_tab_controller.dart';
 import '../cuentas/cuentas_screen.dart';
-import '../transacciones/transacciones_screen.dart';
-import '../categorias/categorias_screen.dart';
 import '../personas/personas_screen.dart';
 import '../gastos_fijos/gastos_fijos_screen.dart';
-import '../reportes/reportes_screen.dart';
+import '../categorias/categorias_screen.dart';
+import '../notificaciones/notificaciones_panel.dart';
 
 class HomeScreen extends StatefulWidget {
   final AppDatabase database;
-  
+
   const HomeScreen({super.key, required this.database});
 
   @override
@@ -21,42 +21,64 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // ✅ Ya no necesitas _dateFormat aquí, usas Formatters.fecha()
-  // final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: AppDrawer(database: widget.database, currentRoute: '/home'),
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Implementar notificaciones
+          StreamBuilder<int>(
+            stream: _contarAlertas(),
+            builder: (context, snapshot) {
+              final count = snapshot.data ?? 0;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () => showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      builder: (_) => NotificacionesPanel(database: widget.database),
+                    ),
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Badge(
+                        label: Text('$count'),
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                ],
+              );
             },
           ),
         ],
       ),
-      drawer: AppDrawer(
-        database: widget.database,
-        currentRoute: '/home',
-      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.base),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildWelcomeCard(),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xl),
             _buildThreeCards(),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.base),
             _buildAhorroProgress(),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.base),
             _buildGastosFijosCard(),
-            const SizedBox(height: 24),
+            _buildAlertasCuotas(),
+            const SizedBox(height: AppSpacing.xl),
             _buildRecentTransactions(),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xl),
             _buildQuickActions(),
           ],
         ),
@@ -65,22 +87,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildWelcomeCard() {
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.primary.withOpacity(0.7),
+            theme.colorScheme.primary,
+            theme.colorScheme.primary.withValues(alpha: 0.65),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.xlBR,
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            color: theme.colorScheme.primary.withValues(alpha: 0.28),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -89,20 +112,18 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '¡Bienvenido!',
-            style: TextStyle(
+            style: theme.textTheme.titleLarge?.copyWith(
               color: Colors.white,
               fontSize: 24,
-              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             'Gestiona tus finanzas de manera inteligente',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 14,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.90),
             ),
           ),
         ],
@@ -115,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
       stream: widget.database.select(widget.database.cuentas).watch(),
       builder: (context, snapshot) {
         final cuentas = snapshot.data ?? [];
-        
+
         final balanceDisponible = cuentas
             .where((c) => c.tipo == 'efectivo' || c.tipo == 'debito')
             .fold(0.0, (sum, c) => sum + c.saldo);
@@ -133,33 +154,33 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Expanded(
                   child: _buildBalanceCard(
-                    'Balance Disponible',
+                    'Balance',
                     balanceDisponible,
-                    'Tu dinero real',
+                    'Dinero real',
                     Icons.account_balance_wallet,
-                    Colors.green,
+                    AppTheme.incomeColor,
                     () => _navigateToCuentas(),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: _buildBalanceCard(
-                    'Crédito Disponible',
+                    'Crédito',
                     creditoDisponible,
-                    'Límite disponible',
+                    'Disponible',
                     Icons.credit_card,
-                    Colors.blue,
+                    AppTheme.savingsColor,
                     () => _navigateToCuentas(),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: _buildBalanceCard(
-                    'Flujo del Mes',
+                    'Flujo Mes',
                     flujoDelMes,
                     'Cuotas + Fijos',
                     Icons.trending_down,
-                    flujoDelMes >= 0 ? Colors.green : Colors.red,
+                    flujoDelMes >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor,
                     () => _navigateToTransacciones(),
                   ),
                 ),
@@ -179,46 +200,36 @@ class _HomeScreenState extends State<HomeScreen> {
     Color color,
     VoidCallback onTap,
   ) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.base),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 12),
+              AppSemanticIcon(icon: icon, color: color, size: AppIconSize.sm),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 4),
-              // ✅ USA Formatters AQUÍ
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 Formatters.monedaConSimbolo(amount),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: amount < 0 ? Colors.red : Colors.black87,
+                style: theme.textTheme.displaySmall?.copyWith(
+                  color: amount < 0 ? AppTheme.expenseColor : null,
+                  fontSize: 16,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 subtitle,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[500],
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.outline,
                 ),
               ),
             ],
@@ -236,57 +247,44 @@ class _HomeScreenState extends State<HomeScreen> {
           .map((cuentas) => cuentas.where((c) => c.tipo == 'ahorro').toList()),
       builder: (context, snapshot) {
         final cuentasAhorro = snapshot.data ?? [];
-        
-        if (cuentasAhorro.isEmpty) {
-          return const SizedBox.shrink();
-        }
+        if (cuentasAhorro.isEmpty) return const SizedBox.shrink();
 
         final totalAhorrado = cuentasAhorro.fold(0.0, (sum, c) => sum + c.saldo);
         final totalMeta = cuentasAhorro.fold(0.0, (sum, c) => sum + (c.meta ?? 0));
-
-        if (totalMeta == 0) {
-          return const SizedBox.shrink();
-        }
+        if (totalMeta == 0) return const SizedBox.shrink();
 
         final progreso = (totalAhorrado / totalMeta).clamp(0.0, 1.0);
         final porcentaje = (progreso * 100).toStringAsFixed(1);
+        final theme = Theme.of(context);
 
         return GestureDetector(
           onTap: () => _navigateToCuentas(),
           child: Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.base),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.savings, color: Colors.orange, size: 20),
+                      AppSemanticIcon(
+                        icon: Icons.savings,
+                        color: AppTheme.alertCaution,
+                        size: AppIconSize.sm,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              '🎯 Ahorro',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Text(
+                              'Ahorro',
+                              style: theme.textTheme.titleMedium,
                             ),
-                            // ✅ USA Formatters AQUÍ
                             Text(
                               '${Formatters.monedaConSimbolo(totalAhorrado)} / ${Formatters.monedaConSimbolo(totalMeta)} ($porcentaje%)',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -294,15 +292,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.md),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: AppRadius.mdBR,
                     child: LinearProgressIndicator(
                       value: progreso,
-                      minHeight: 12,
-                      backgroundColor: Colors.grey[200],
+                      minHeight: 10,
+                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        progreso >= 1.0 ? Colors.green : Colors.orange,
+                        progreso >= 1.0 ? AppTheme.alertCelebrate : AppTheme.alertCaution,
                       ),
                     ),
                   ),
@@ -316,6 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildGastosFijosCard() {
+    final theme = Theme.of(context);
     return StreamBuilder<List<GastoFijo>>(
       stream: widget.database.watchGastosFijos(soloActivos: true),
       builder: (context, snapshot) {
@@ -333,34 +332,27 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.base),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.repeat, color: Colors.red, size: 20),
+                  AppSemanticIcon(
+                    icon: Icons.repeat,
+                    color: AppTheme.expenseColor,
+                    size: AppIconSize.sm,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Gastos Fijos Mensuales',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: theme.textTheme.titleMedium,
                         ),
                         Text(
                           '${gastos.length} gastos activos',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.outline,
                           ),
                         ),
                       ],
@@ -368,10 +360,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Text(
                     Formatters.monedaConSimbolo(total),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: AppTheme.expenseColor,
                     ),
                   ),
                 ],
@@ -383,46 +373,66 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildAlertasCuotas() {
+    final ahora = DateTime.now();
+    final en7Dias = ahora.add(const Duration(days: 7));
+    return StreamBuilder<List<Cuota>>(
+      stream: (widget.database.select(widget.database.cuotas)
+            ..where(
+              (c) =>
+                  c.pagada.equals(false) &
+                  c.fechaVencimiento.isBiggerOrEqualValue(ahora) &
+                  c.fechaVencimiento.isSmallerOrEqualValue(en7Dias),
+            )
+            ..orderBy([(c) => OrderingTerm.asc(c.fechaVencimiento)]))
+          .watch(),
+      builder: (context, snapshot) {
+        final cuotas = snapshot.data ?? [];
+        if (cuotas.isEmpty) return const SizedBox.shrink();
+
+        final totalPendiente = cuotas.fold(0.0, (sum, c) => sum + c.monto);
+        return AppInfoBanner(
+          type: AppBannerType.warning,
+          title: '${cuotas.length} cuota${cuotas.length == 1 ? '' : 's'} vence${cuotas.length == 1 ? '' : 'n'} en 7 días',
+          subtitle: 'Total: ${Formatters.monedaConSimbolo(totalPendiente)}',
+          onTap: () => AppTabController.goToProyeccion(),
+        );
+      },
+    );
+  }
+
   Widget _buildRecentTransactions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Transacciones Recientes',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+        AppSectionHeader(
+          title: 'Transacciones Recientes',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton.icon(
+                onPressed: () => _showAddTransaccionDialog(),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Nuevo'),
               ),
-            ),
-            Row(
-              children: [
-                TextButton.icon(
-                  onPressed: () => _showAddTransaccionDialog(),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Nuevo'),
-                ),
-                TextButton(
-                  onPressed: () => _navigateToTransacciones(),
-                  child: const Text('Ver Todas →'),
-                ),
-              ],
-            ),
-          ],
+              TextButton(
+                onPressed: () => _navigateToTransacciones(),
+                child: const Text('Ver Todas →'),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         StreamBuilder<List<Transaccion>>(
           stream: (widget.database.select(widget.database.transacciones)
-            ..orderBy([
-              (t) => OrderingTerm(
-                    expression: t.fecha,
-                    mode: OrderingMode.desc,
-                  )
-            ]))
-          .watch()
-          .map((list) => list.take(5).toList()),
+                ..orderBy([
+                  (t) => OrderingTerm(
+                        expression: t.fecha,
+                        mode: OrderingMode.desc,
+                      )
+                ]))
+              .watch()
+              .map((list) => list.take(5).toList()),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -431,7 +441,12 @@ class _HomeScreenState extends State<HomeScreen> {
             final transacciones = snapshot.data ?? [];
 
             if (transacciones.isEmpty) {
-              return _buildEmptyTransactions();
+              return AppEmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: 'No hay transacciones todavía',
+                buttonLabel: 'Crear primera transacción',
+                onAction: () => _showAddTransaccionDialog(),
+              );
             }
 
             return Card(
@@ -445,70 +460,30 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildEmptyTransactions() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(
-                Icons.receipt_long_outlined,
-                size: 48,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'No hay transacciones todavía',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => _showAddTransaccionDialog(),
-                icon: const Icon(Icons.add),
-                label: const Text('Crear primera transacción'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTransactionTile(Transaccion transaccion) {
     final isIngreso = transaccion.tipo == 'ingreso';
-    final color = isIngreso ? Colors.green : Colors.red;
+    final color = isIngreso ? AppTheme.incomeColor : AppTheme.expenseColor;
+    final theme = Theme.of(context);
 
     return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          isIngreso ? Icons.arrow_downward : Icons.arrow_upward,
-          color: color,
-          size: 20,
-        ),
+      leading: AppSemanticIcon(
+        icon: isIngreso ? Icons.arrow_downward : Icons.arrow_upward,
+        color: color,
+        size: AppIconSize.sm,
       ),
       title: Text(
         transaccion.descripcion,
-        style: const TextStyle(fontWeight: FontWeight.w600),
+        style: theme.textTheme.labelLarge,
       ),
       subtitle: Text(
-        // ✅ USA Formatters AQUÍ para la fecha
         Formatters.fecha(transaccion.fecha),
-        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.outline,
+        ),
       ),
       trailing: Text(
-        // ✅ USA Formatters AQUÍ para el monto
         '${isIngreso ? '+' : '-'}${Formatters.monedaConSimbolo(transaccion.montoTotal)}',
-        style: TextStyle(
-          fontSize: 14,
+        style: theme.textTheme.labelLarge?.copyWith(
           fontWeight: FontWeight.bold,
           color: color,
         ),
@@ -520,131 +495,69 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Acciones Rápidas',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
+        AppSectionHeader(title: 'Acciones Rápidas'),
+        const SizedBox(height: AppSpacing.md),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
+          crossAxisCount: 3,
+          mainAxisSpacing: AppSpacing.md,
+          crossAxisSpacing: AppSpacing.md,
+          childAspectRatio: 1.1,
           children: [
             _buildActionCard(
-              'Gestionar Cuentas',
+              'Cuentas',
               Icons.account_balance_wallet,
-              Colors.blue,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CuentasScreen(database: widget.database),
-                  ),
-                );
-              },
+              AppTheme.savingsColor,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => CuentasScreen(database: widget.database)),
+              ),
             ),
             _buildActionCard(
               'Reportes',
               Icons.bar_chart,
-              Colors.purple,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ReportesScreen(database: widget.database),
-                  ),
-                );
-              },
+              AppTheme.creditColor,
+              () => AppTabController.goToReportes(),
+            ),
+            _buildActionCard(
+              'Proyección',
+              Icons.trending_up,
+              AppTheme.alertOk,
+              () => AppTabController.goToProyeccion(),
             ),
             _buildActionCard(
               'Personas',
               Icons.people,
-              Colors.orange,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PersonasScreen(database: widget.database),
-                  ),
-                );
-              },
+              AppTheme.alertCaution,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => PersonasScreen(database: widget.database)),
+              ),
             ),
             _buildActionCard(
-              'Proyección',
-              Icons.trending_up,  // O Icons.calendar_month
-              Colors.teal,
-              () {
-                Navigator.pushNamed(context, '/proyeccion');
-              },
+              'Categorías',
+              Icons.category,
+              AppTheme.incomeColor,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => CategoriasScreen(database: widget.database)),
+              ),
+            ),
+            _buildActionCard(
+              'Gastos Fijos',
+              Icons.repeat,
+              AppTheme.expenseColor,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => GastosFijosScreen(database: widget.database)),
+              ),
             ),
           ],
         ),
       ],
     );
   }
-  /*Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Acciones Rápidas',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
-          children: [
-            _buildActionCard(
-              'Gestionar Cuentas',
-              Icons.account_balance_wallet,
-              Colors.blue,
-              () => _navigateToCuentas(),
-            ),
-            _buildActionCard(
-              'Categorías',
-              Icons.category,
-              Colors.purple,
-              () {
-                Navigator.pushNamed(context, '/categorias');
-              },
-            ),
-            _buildActionCard(
-              'Personas',
-              Icons.people,
-              Colors.orange,
-              () {
-                Navigator.pushNamed(context, '/personas');
-              },
-            ),
-            _buildActionCard(
-              'Ver Reportes',
-              Icons.assessment,
-              Colors.green,
-              () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Próximamente: Reportes')),
-                );
-              },
-            ),
-          ],
-        ),
-      ],
-    );
-  }*/
 
   Widget _buildActionCard(
     String title,
@@ -652,31 +565,22 @@ class _HomeScreenState extends State<HomeScreen> {
     Color color,
     VoidCallback onTap,
   ) {
+    final theme = Theme.of(context);
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: AppRadius.lgBR,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.base),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              const SizedBox(height: 8),
+              AppSemanticIcon(icon: icon, color: color, size: AppIconSize.md),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: theme.textTheme.labelLarge,
               ),
             ],
           ),
@@ -686,35 +590,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ==========================================
-  // MÉTODOS DE NAVEGACIÓN Y CÁLCULOS
+  // NAVEGACIÓN Y CÁLCULOS
   // ==========================================
 
-  void _navigateToCuentas() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CuentasScreen(database: widget.database),
-      ),
-    );
+  Stream<int> _contarAlertas() {
+    final ahora = DateTime.now();
+    final en30Dias = ahora.add(const Duration(days: 30));
+    return (widget.database.select(widget.database.cuotas)
+          ..where(
+            (c) =>
+                c.pagada.equals(false) &
+                c.fechaVencimiento.isBiggerOrEqualValue(ahora) &
+                c.fechaVencimiento.isSmallerOrEqualValue(en30Dias),
+          ))
+        .watch()
+        .asyncMap((cuotas) async {
+      final deudas = await (widget.database.select(widget.database.deudas)
+            ..where((d) => d.estado.isNotIn(['pagada'])))
+          .get();
+      return cuotas.length + deudas.length;
+    });
   }
 
-  void _navigateToTransacciones() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TransaccionesScreen(database: widget.database),
-      ),
-    );
-  }
+  void _navigateToCuentas() => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => CuentasScreen(database: widget.database)),
+      );
 
-  void _showAddTransaccionDialog() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TransaccionesScreen(database: widget.database),
-      ),
-    );
-  }
+  void _navigateToTransacciones() => AppTabController.goToTransacciones();
+
+  void _showAddTransaccionDialog() => AppTabController.goToTransacciones();
 
   Stream<double> _calcularFlujoDelMes() {
     final now = DateTime.now();
@@ -725,65 +630,31 @@ class _HomeScreenState extends State<HomeScreen> {
         .select(widget.database.transacciones)
         .watch()
         .asyncMap((transacciones) async {
-      // Filtrar transacciones del mes actual (para egresos débito)
-      final transaccionesDelMes = transacciones.where((t) =>
-          t.fecha.isAfter(inicioMes.subtract(const Duration(days: 1))) &&
-          t.fecha.isBefore(finMes.add(const Duration(days: 1)))).toList();
+      final transaccionesDelMes = transacciones
+          .where((t) =>
+              t.fecha.isAfter(inicioMes.subtract(const Duration(days: 1))) &&
+              t.fecha.isBefore(finMes.add(const Duration(days: 1))))
+          .toList();
 
-      // Calcular ingresos del mes
       final ingresos = transaccionesDelMes
           .where((t) => t.tipo == 'ingreso')
           .fold(0.0, (sum, t) => sum + t.montoTotal);
 
-      // Calcular egresos débito del mes
       final egresosDebito = transaccionesDelMes
           .where((t) => t.tipo == 'egreso' && t.formaPago == 'debito')
           .fold(0.0, (sum, t) => sum + t.montoTotal);
 
-      // ✅ CORREGIDO: Cuotas que VENCEN este mes (no las creadas este mes)
       final cuotasDelMes = await (widget.database.select(widget.database.cuotas)
-            ..where((c) => 
-              c.fechaVencimiento.isBiggerOrEqualValue(inicioMes) & 
-              c.fechaVencimiento.isSmallerOrEqualValue(finMes) &
-              c.pagada.equals(false))) // Solo las que aún no se pagan
+            ..where((c) =>
+                c.fechaVencimiento.isBiggerOrEqualValue(inicioMes) &
+                c.fechaVencimiento.isSmallerOrEqualValue(finMes) &
+                c.pagada.equals(false)))
           .get();
 
       final totalCuotas = cuotasDelMes.fold(0.0, (sum, c) => sum + c.monto);
-
-      final totalGastosFijos =
-          await widget.database.totalGastosFijosActivos();
+      final totalGastosFijos = await widget.database.totalGastosFijosActivos();
 
       return ingresos - egresosDebito - totalCuotas - totalGastosFijos;
     });
   }
-  /*Stream<double> _calcularFlujoDelMes() {
-    final now = DateTime.now();
-    final inicioMes = DateTime(now.year, now.month, 1);
-    final finMes = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-
-    return widget.database
-        .select(widget.database.transacciones)
-        .watch()
-        .asyncMap((transacciones) async {
-      final transaccionesDelMes = transacciones.where((t) =>
-          t.fecha.isAfter(inicioMes.subtract(const Duration(days: 1))) &&
-          t.fecha.isBefore(finMes.add(const Duration(days: 1)))).toList();
-
-      final ingresos = transaccionesDelMes
-          .where((t) => t.tipo == 'ingreso')
-          .fold(0.0, (sum, t) => sum + t.montoTotal);
-
-      final egresosDebito = transaccionesDelMes
-          .where((t) => t.tipo == 'egreso' && t.formaPago == 'debito')
-          .fold(0.0, (sum, t) => sum + t.montoTotal);
-
-      final cuotasDelMes = await (widget.database.select(widget.database.cuotas)
-            ..where((c) => c.fechaVencimiento.isBetweenValues(inicioMes, finMes)))
-          .get();
-
-      final totalCuotas = cuotasDelMes.fold(0.0, (sum, c) => sum + c.monto);
-
-      return ingresos - egresosDebito - totalCuotas;
-    });
-  }*/
 }

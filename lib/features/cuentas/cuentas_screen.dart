@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../core/database/database.dart';
-import '../../core/widgets/app_drawer.dart';
+import '../../core/widgets/widgets.dart';
 
 class CuentasScreen extends StatefulWidget {
   final AppDatabase database;
@@ -32,15 +32,19 @@ class _CuentasScreenState extends State<CuentasScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Error: ${snapshot.error}'),
-            );
+            return AppErrorState(error: snapshot.error);
           }
 
           final cuentas = snapshot.data ?? [];
 
           if (cuentas.isEmpty) {
-            return _buildEmptyState();
+            return AppEmptyState(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'No hay cuentas registradas',
+              subtitle: 'Comienza agregando tu primera cuenta',
+              buttonLabel: 'Agregar Cuenta',
+              onAction: () => _showAddCuentaDialog(),
+            );
           }
 
           return ListView.builder(
@@ -57,44 +61,6 @@ class _CuentasScreenState extends State<CuentasScreen> {
         onPressed: () => _showAddCuentaDialog(),
         icon: const Icon(Icons.add),
         label: const Text('Nueva Cuenta'),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.account_balance_wallet_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No hay cuentas registradas',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Comienza agregando tu primera cuenta',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showAddCuentaDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Agregar Cuenta'),
-          ),
-        ],
       ),
     );
   }
@@ -123,7 +89,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: cardColor.withOpacity(0.1),
+            color: cardColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(iconData, color: cardColor),
@@ -198,7 +164,8 @@ class _CuentasScreenState extends State<CuentasScreen> {
                 
                 // Tipo de cuenta
                 DropdownButtonFormField<String>(
-                  value: tipoCuenta,
+                  key: ValueKey(tipoCuenta),
+                  initialValue: tipoCuenta,
                   decoration: const InputDecoration(
                     labelText: 'Tipo de cuenta',
                     prefixIcon: Icon(Icons.category),

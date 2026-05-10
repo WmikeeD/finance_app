@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../models/proyeccion_models.dart';
 
@@ -28,7 +29,7 @@ class DetalleMeses extends StatelessWidget {
     final colorIndicador = _getColorIndicador(mes.sobrante, mes.totalIngresos);
 
     return Card(
-      margin: const EdgeInsets.all(8),
+      margin: const EdgeInsets.all(AppSpacing.sm),
       child: InkWell(
         onTap: () => onMesTap(mes),
         child: Padding(
@@ -50,7 +51,7 @@ class DetalleMeses extends StatelessWidget {
                   if (mes.esMesLiberacion)
                     const Chip(
                       label: Text('🎉 LIBERACIÓN'),
-                      backgroundColor: Colors.amber,
+                      backgroundColor: AppTheme.alertCelebrate,
                     ),
                 ],
               ),
@@ -69,7 +70,7 @@ class DetalleMeses extends StatelessWidget {
                   'Préstamo ${p.nombrePersona}',
                   p.monto,
                   icon: Icons.arrow_circle_up,
-                  color: Colors.green,
+                  color: AppTheme.incomeColor,
                 )),
                 _buildFila('Total ingresos', mes.totalIngresos, isTotal: true),
                 const SizedBox(height: 12),
@@ -165,12 +166,13 @@ class DetalleMeses extends StatelessWidget {
   }
 
   Widget _buildCuotaTile(CuotaMes cuota) {
-    return Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.all(8),
+    return Builder(
+      builder: (context) => Container(
+      margin: const EdgeInsets.only(top: AppSpacing.xs),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(4),
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: AppRadius.smBR,
       ),
       child: Row(
         children: [
@@ -196,15 +198,16 @@ class DetalleMeses extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 
   Color _getColorIndicador(double sobrante, double ingresos) {
     if (ingresos == 0) return Colors.grey;
     final porcentaje = sobrante / ingresos;
-    if (porcentaje < 0) return Colors.red;
-    if (porcentaje < 0.1) return Colors.orange;
-    if (porcentaje < 0.3) return Colors.yellow[700]!;
-    return Colors.green;
+    if (porcentaje < 0) return AppTheme.alertDanger;
+    if (porcentaje < 0.1) return AppTheme.alertWarning;
+    if (porcentaje < 0.3) return AppTheme.alertCaution;
+    return AppTheme.alertOk;
   }
 }

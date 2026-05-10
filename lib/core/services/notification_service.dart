@@ -1,4 +1,6 @@
+import 'dart:io' show Platform;
 import 'package:drift/drift.dart' hide Column;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -8,10 +10,14 @@ class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
 
+  // Solo soportado en Android e iOS
+  static bool get _soportado =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
   // ─── Inicialización ───────────────────────────────────────────────────────
 
   static Future<void> initialize() async {
-    if (_initialized) return;
+    if (!_soportado || _initialized) return;
 
     tz_data.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('America/Santiago'));
@@ -33,6 +39,8 @@ class NotificationService {
   // ─── Permisos ─────────────────────────────────────────────────────────────
 
   static Future<bool> solicitarPermiso() async {
+    if (!_soportado) return false;
+
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
@@ -55,6 +63,8 @@ class NotificationService {
   }
 
   static Future<bool> tienePermiso() async {
+    if (!_soportado) return false;
+
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
@@ -67,7 +77,7 @@ class NotificationService {
   // ─── Programar notificaciones ─────────────────────────────────────────────
 
   static Future<void> programarNotificaciones(AppDatabase db) async {
-    if (!await tienePermiso()) return;
+    if (!_soportado || !await tienePermiso()) return;
 
     final perfil = await db.obtenerPerfil();
     if (perfil == null) return;
@@ -148,6 +158,7 @@ class NotificationService {
   }
 
   static Future<void> cancelarTodas() async {
+    if (!_soportado) return;
     await _plugin.cancelAll();
   }
 

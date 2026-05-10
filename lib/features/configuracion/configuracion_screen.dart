@@ -6,7 +6,6 @@ import '../../core/database/database.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/app_drawer.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
   final AppDatabase database;
@@ -25,10 +24,6 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Configuración'),
-      ),
-      drawer: AppDrawer(
-        database: widget.database,
-        currentRoute: '/settings',
       ),
       body: StreamBuilder<Perfil?>(
         stream: widget.database.select(widget.database.perfiles).watch().map(

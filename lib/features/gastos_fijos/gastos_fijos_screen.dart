@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' show Value;
 import '../../core/database/database.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/app_drawer.dart';
+import '../../core/widgets/widgets.dart';
 
 class GastosFijosScreen extends StatefulWidget {
   final AppDatabase database;
@@ -49,7 +50,13 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
           final gastos = snapshot.data ?? [];
 
           if (gastos.isEmpty) {
-            return _buildEmptyState();
+            return AppEmptyState(
+              icon: Icons.repeat_outlined,
+              title: 'No hay gastos fijos',
+              subtitle: 'Agrega gastos que se repiten cada mes',
+              buttonLabel: 'Nuevo Gasto Fijo',
+              onAction: () => _showFormDialog(),
+            );
           }
 
           final totalActivos = gastos
@@ -88,7 +95,7 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
         gradient: LinearGradient(
           colors: [
             Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.primary.withOpacity(0.75),
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.65),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
@@ -155,9 +162,9 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
           height: 44,
           decoration: BoxDecoration(
             color: gasto.activo
-                ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
-                : Colors.grey.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(10),
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+                : Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: AppRadius.lgBR,
           ),
           child: Icon(
             Icons.repeat,
@@ -205,7 +212,9 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
                   gasto.activo ? 'activo' : 'inactivo',
                   style: TextStyle(
                     fontSize: 11,
-                    color: gasto.activo ? Colors.green : Colors.grey,
+                    color: gasto.activo
+                        ? AppTheme.alertOk
+                        : Theme.of(context).colorScheme.outline,
                   ),
                 ),
               ],
@@ -227,34 +236,6 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.repeat_outlined, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'No hay gastos fijos registrados',
-            style: TextStyle(color: Colors.grey[600], fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Agrega tus gastos recurrentes mensuales\ncomo arriendo, servicios, suscripciones, etc.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey[500], fontSize: 13),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showFormDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Agregar primer gasto fijo'),
-          ),
-        ],
       ),
     );
   }
@@ -406,7 +387,8 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
                   builder: (_, snap) {
                     final cats = snap.data ?? [];
                     return DropdownButtonFormField<int?>(
-                      value: categoriaId,
+                      key: ValueKey(categoriaId),
+                      initialValue: categoriaId,
                       decoration: const InputDecoration(
                         labelText: 'Categoría (opcional)',
                         prefixIcon: Icon(Icons.category_outlined),

@@ -335,7 +335,8 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
                 // Tipo — solo visible si no viene prefijado
                 if (padreId == null)
                   DropdownButtonFormField<String>(
-                    value: tipoSeleccionado,
+                    key: ValueKey(tipoSeleccionado),
+                    initialValue: tipoSeleccionado,
                     decoration: const InputDecoration(
                       labelText: 'Tipo',
                       prefixIcon: Icon(Icons.swap_vert),
@@ -363,7 +364,8 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
                           .toList();
                       if (padres.isEmpty) return const SizedBox.shrink();
                       return DropdownButtonFormField<int?>(
-                        value: padreSeleccionado,
+                        key: ValueKey(padreSeleccionado),
+                        initialValue: padreSeleccionado,
                         decoration: const InputDecoration(
                           labelText: 'Categoría padre (opcional)',
                           prefixIcon:
@@ -399,7 +401,7 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
                           );
                       if (ctx.mounted) {
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(ctx).showSnackBar(
                           SnackBar(
                               content: Text(
                                   '${padreId != null ? 'Subcategoría' : 'Categoría'} creada')),

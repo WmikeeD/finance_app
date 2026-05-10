@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../models/proyeccion_models.dart';
 
@@ -32,12 +33,12 @@ class GraficoBarras extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildLeyenda('Cuotas', Colors.blue),
-              const SizedBox(width: 16),
-              if (incluirGastosFijos) _buildLeyenda('Fijos', Colors.grey),
+              _buildLeyenda('Cuotas', AppTheme.savingsColor),
+              const SizedBox(width: AppSpacing.base),
+              if (incluirGastosFijos) _buildLeyenda('Fijos', AppTheme.alertCaution),
               if (sueldo != null) ...[
-                const SizedBox(width: 16),
-                _buildLeyenda('Sueldo', Colors.red, isLinea: true),
+                const SizedBox(width: AppSpacing.base),
+                _buildLeyenda('Sueldo', AppTheme.expenseColor, isLinea: true),
               ],
             ],
           ),
@@ -107,28 +108,28 @@ class GraficoBarras extends StatelessWidget {
                   Container(
                     width: 50,
                     height: 2,
-                    color: Colors.red,
+                    color: AppTheme.expenseColor,
                     margin: EdgeInsets.only(bottom: alturaSueldo),
                   ),
-                
+
                 // Barra de gastos fijos
                 if (incluirGastosFijos)
                   Container(
                     width: 40,
                     height: alturaFijos,
-                    color: Colors.grey[400],
+                    color: AppTheme.alertCaution.withValues(alpha: 0.6),
                   ),
-                
+
                 // Barra de cuotas
                 Container(
                   width: 40,
                   height: alturaCuotas,
                   decoration: BoxDecoration(
-                    color: esLiberacion ? Colors.amber : Colors.blue,
-                    border: esLiberacion 
-                        ? Border.all(color: Colors.orange, width: 2)
+                    color: esLiberacion ? AppTheme.alertCelebrate : AppTheme.savingsColor,
+                    border: esLiberacion
+                        ? Border.all(color: AppTheme.alertWarning, width: 2)
                         : null,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: AppRadius.smBR,
                   ),
                   child: esLiberacion 
                       ? const Center(child: Text('★', style: TextStyle(fontSize: 20)))

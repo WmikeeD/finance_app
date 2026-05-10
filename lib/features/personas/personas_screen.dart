@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../core/database/database.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/app_drawer.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/widgets.dart';
+import '../../core/navigation/app_tab_controller.dart';
 
 class PersonasScreen extends StatefulWidget {
   final AppDatabase database;
@@ -40,13 +42,19 @@ class _PersonasScreenState extends State<PersonasScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return AppErrorState(error: snapshot.error);
           }
 
           final personas = snapshot.data ?? [];
 
           if (personas.isEmpty) {
-            return _buildEmptyState();
+            return AppEmptyState(
+              icon: Icons.people_outline,
+              title: 'No hay personas registradas',
+              subtitle: 'Registra personas para gestionar préstamos',
+              buttonLabel: 'Agregar Persona',
+              onAction: () => _showAddPersonaDialog(),
+            );
           }
 
           return ListView.builder(
@@ -95,7 +103,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
           width: 40,
           height: 4,
           decoration: BoxDecoration(
-            color: Colors.grey[300],
+            color: Theme.of(context).colorScheme.outlineVariant,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -103,7 +111,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              const Icon(Icons.account_balance_wallet, color: Colors.orange),
+              Icon(Icons.account_balance_wallet, color: AppTheme.alertCaution),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
@@ -123,11 +131,11 @@ class _PersonasScreenState extends State<PersonasScreen> {
                   final total = deudas.fold(0.0, (sum, d) => sum + d.montoPendiente);
                   
                   return Chip(
-                    backgroundColor: Colors.orange[100],
+                    backgroundColor: AppTheme.alertCaution.withValues(alpha: 0.15),
                     label: Text(
                       Formatters.monedaConSimbolo(total),
                       style: TextStyle(
-                        color: Colors.orange[800],
+                        color: AppTheme.alertCaution,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -152,18 +160,9 @@ class _PersonasScreenState extends State<PersonasScreen> {
               final deudas = snapshot.data ?? [];
 
               if (deudas.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.check_circle, size: 64, color: Colors.green[200]),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No hay deudas pendientes',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
-                  ),
+                return AppEmptyState(
+                  icon: Icons.check_circle_outline,
+                  title: 'No hay deudas pendientes',
                 );
               }
 
@@ -208,10 +207,12 @@ class _PersonasScreenState extends State<PersonasScreen> {
                     Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: esCuotas ? Colors.purple[100] : Colors.blue[100],
+                          backgroundColor: esCuotas
+                              ? AppTheme.creditColor.withValues(alpha: 0.12)
+                              : AppTheme.savingsColor.withValues(alpha: 0.12),
                           child: Icon(
                             esCuotas ? Icons.credit_card : Icons.money_off,
-                            color: esCuotas ? Colors.purple : Colors.blue,
+                            color: esCuotas ? AppTheme.creditColor : AppTheme.savingsColor,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -230,7 +231,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
                                 transaccion?.descripcion ?? 'Sin descripción',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey[600],
+                                  color: Theme.of(context).colorScheme.outline,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -243,17 +244,17 @@ class _PersonasScreenState extends State<PersonasScreen> {
                           children: [
                             Text(
                               Formatters.monedaConSimbolo(deuda.montoPendiente),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                                color: Colors.red,
+                                color: AppTheme.expenseColor,
                               ),
                             ),
                             Text(
                               'de ${Formatters.monedaConSimbolo(deuda.montoTotal)}',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey[500],
+                                color: Theme.of(context).colorScheme.outline,
                               ),
                             ),
                           ],
@@ -263,9 +264,9 @@ class _PersonasScreenState extends State<PersonasScreen> {
                     const SizedBox(height: 12),
                     LinearProgressIndicator(
                       value: progreso,
-                      backgroundColor: Colors.grey[200],
+                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        progreso >= 1 ? Colors.green : Colors.orange,
+                        progreso >= 1 ? AppTheme.alertOk : AppTheme.alertCaution,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -284,8 +285,11 @@ class _PersonasScreenState extends State<PersonasScreen> {
                           _buildProximaCuotaInfo(deuda.transaccionId),
                         TextButton.icon(
                           onPressed: () => _registrarPago(deuda),
-                          icon: const Icon(Icons.add_circle, size: 16),
-                          label: const Text('Registrar pago'),
+                          icon: const Icon(Icons.payments, size: 16),
+                          label: const Text('Cobrar deuda'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.incomeColor,
+                          ),
                         ),
                       ],
                     ),
@@ -313,9 +317,12 @@ class _PersonasScreenState extends State<PersonasScreen> {
         final cuota = cuotas.first;
         final diasRestantes = cuota.fechaVencimiento.difference(DateTime.now()).inDays;
         
-        Color color = Colors.green;
-        if (diasRestantes < 0) color = Colors.red;
-        else if (diasRestantes < 5) color = Colors.orange;
+        Color color = AppTheme.alertOk;
+        if (diasRestantes < 0) {
+          color = AppTheme.alertDanger;
+        } else if (diasRestantes < 5) {
+          color = AppTheme.alertCaution;
+        }
         
         return Text(
           'Próxima: ${Formatters.fecha(cuota.fechaVencimiento)}',
@@ -330,143 +337,251 @@ class _PersonasScreenState extends State<PersonasScreen> {
   }
 
   Future<void> _registrarPago(Deuda deuda) async {
-    final montoController = TextEditingController();
-    
-    showDialog(
+    final cuentas = await widget.database.select(widget.database.cuentas).get();
+    final categoriaCobroList = await (widget.database.select(widget.database.categorias)
+          ..where((c) =>
+              c.nombre.equals('Cobro de Préstamo') & c.tipo.equals('ingreso')))
+        .get();
+    final transaccion = await (widget.database.select(widget.database.transacciones)
+          ..where((t) => t.id.equals(deuda.transaccionId)))
+        .getSingleOrNull();
+
+    if (!mounted) return;
+
+    if (cuentas.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Primero debes crear al menos una cuenta')),
+      );
+      return;
+    }
+
+    final montoController = TextEditingController(
+      text: deuda.montoPendiente.toStringAsFixed(2),
+    );
+    final notasController = TextEditingController();
+    Cuenta cuentaSeleccionada = cuentas.first;
+
+    await showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Registrar Pago'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Deuda pendiente: ${Formatters.monedaConSimbolo(deuda.montoPendiente)}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: montoController,
-              decoration: const InputDecoration(
-                labelText: 'Monto a pagar',
-                prefixText: '\$ ',
-              ),
-              keyboardType: TextInputType.number,
-              autofocus: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            decoration: BoxDecoration(
+              color: Theme.of(ctx).scaffoldBackgroundColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final monto = double.tryParse(montoController.text);
-              if (monto == null || monto <= 0) return;
-              
-              if (monto > deuda.montoPendiente) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('El pago excede la deuda pendiente')),
-                );
-                return;
-              }
-
-              await widget.database.transaction(() async {
-                // 1. Registrar el pago
-                await widget.database.into(widget.database.pagosDeuda).insert(
-                  PagosDeudaCompanion.insert(
-                    deudaId: deuda.id,
-                    monto: monto,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).colorScheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                );
-
-                // 2. Actualizar la deuda
-                final nuevoPagado = deuda.montoPagado + monto;
-                final nuevoPendiente = deuda.montoTotal - nuevoPagado;
-                final nuevoEstado = nuevoPendiente <= 0 ? 'pagada' : 
-                                   (nuevoPagado > 0 ? 'parcial' : 'pendiente');
-
-                await widget.database.update(widget.database.deudas).replace(
-                  deuda.copyWith(
-                    montoPagado: nuevoPagado,
-                    montoPendiente: nuevoPendiente,
-                    estado: nuevoEstado,
+                ),
+                Row(
+                  children: [
+                    Icon(Icons.payments, color: AppTheme.incomeColor),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Cobrar Deuda',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                if (transaccion != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    transaccion.descripcion,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(ctx).colorScheme.outline,
+                    ),
                   ),
-                );
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoRow(
+                        ctx,
+                        'Total deuda',
+                        Formatters.monedaConSimbolo(deuda.montoTotal),
+                        Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildInfoRow(
+                        ctx,
+                        'Pendiente',
+                        Formatters.monedaConSimbolo(deuda.montoPendiente),
+                        AppTheme.alertCaution.withValues(alpha: 0.1),
+                        textColor: AppTheme.alertCaution,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: montoController,
+                  decoration: InputDecoration(
+                    labelText: 'Monto a cobrar',
+                    prefixText: '\$ ',
+                    prefixIcon: const Icon(Icons.attach_money),
+                    helperText:
+                        'Máximo: ${Formatters.monedaConSimbolo(deuda.montoPendiente)}',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<Cuenta>(
+                  key: ValueKey(cuentaSeleccionada),
+                  initialValue: cuentaSeleccionada,
+                  decoration: const InputDecoration(
+                    labelText: 'Cuenta de destino',
+                    prefixIcon: Icon(Icons.account_balance_wallet),
+                  ),
+                  items: cuentas
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c.nombre),
+                          ))
+                      .toList(),
+                  onChanged: (v) =>
+                      setSheetState(() => cuentaSeleccionada = v ?? cuentaSeleccionada),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: notasController,
+                  decoration: const InputDecoration(
+                    labelText: 'Notas (opcional)',
+                    prefixIcon: Icon(Icons.note_outlined),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('Registrar Cobro'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.incomeColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () async {
+                      final monto =
+                          double.tryParse(montoController.text.trim());
+                      if (monto == null || monto <= 0) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(
+                              content: Text('Ingresa un monto válido')),
+                        );
+                        return;
+                      }
+                      if (monto > deuda.montoPendiente) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('El monto supera la deuda pendiente')),
+                        );
+                        return;
+                      }
 
-                // 3. Si es deuda a cuotas, marcar cuota como pagada (simplificado)
-                if (deuda.tipo == 'cuotas') {
-                  final cuotasPendientes = await (widget.database.select(widget.database.cuotas)
-                        ..where((c) => c.transaccionId.equals(deuda.transaccionId) & c.pagada.equals(false))
-                        ..orderBy([(c) => drift.OrderingTerm(expression: c.numeroCuota)]))
-                      .get();
+                      final categoriaId = categoriaCobroList.isNotEmpty
+                          ? categoriaCobroList.first.id
+                          : await (widget.database.select(
+                                  widget.database.categorias)
+                                ..where((c) => c.tipo.equals('ingreso')))
+                              .get()
+                              .then((list) => list.first.id);
 
-                  double montoRestante = monto;
-                  for (final cuota in cuotasPendientes) {
-                    if (montoRestante <= 0) break;
-                    
-                    if (montoRestante >= cuota.monto) {
-                      // Paga la cuota completa
-                      await widget.database.update(widget.database.cuotas).replace(
-                        cuota.copyWith(
-                          pagada: true, 
-                          fechaPago: drift.Value(DateTime.now()),
-                        ),
+                      await widget.database.registrarPagoDeuda(
+                        deudaId: deuda.id,
+                        cuentaId: cuentaSeleccionada.id,
+                        monto: monto,
+                        descripcion:
+                            'Cobro: ${transaccion?.descripcion ?? 'deuda'}',
+                        personaId: deuda.personaId,
+                        categoriaCobroId: categoriaId,
+                        notas: notasController.text.isEmpty
+                            ? null
+                            : notasController.text,
                       );
-                      montoRestante -= cuota.monto;
-                    }
-                    // Si el pago es parcial de una cuota, necesitarías lógica adicional
-                  }
-                }
-              });
 
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Pago registrado exitosamente')),
-                );
-              }
-            },
-            child: const Text('Registrar'),
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Cobro de ${Formatters.monedaConSimbolo(monto)} registrado',
+                            ),
+                            action: SnackBarAction(
+                              label: 'Ver transacciones',
+                              onPressed: AppTabController.goToTransacciones,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
+
+    montoController.dispose();
+    notasController.dispose();
   }
 
-  // ... resto de métodos existentes (_buildEmptyState, _buildPersonaCard, etc) ...
-  
-  Widget _buildEmptyState() {
-    return Center(
+  Widget _buildInfoRow(
+    BuildContext context,
+    String label,
+    String value,
+    Color bgColor, {
+    Color? textColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.people_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.outline)),
+          const SizedBox(height: 2),
           Text(
-            'No hay personas registradas',
+            value,
             style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: textColor,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Registra personas para gestionar préstamos',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showAddPersonaDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Agregar Persona'),
           ),
         ],
       ),
@@ -510,21 +625,24 @@ class _PersonasScreenState extends State<PersonasScreen> {
                 if (persona.relacion != null)
                   Text(
                     persona.relacion!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                 if (tieneDeuda)
                   Container(
                     margin: const EdgeInsets.only(top: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.red[50],
+                      color: AppTheme.expenseColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       'Debe: ${Formatters.monedaConSimbolo(totalDeuda)}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.red[700],
+                        color: AppTheme.expenseColor,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -580,9 +698,9 @@ class _PersonasScreenState extends State<PersonasScreen> {
                 children: deudas.map((deuda) => ListTile(
                   leading: Icon(
                     deuda.tipo == 'cuotas' ? Icons.credit_card : Icons.money_off,
-                    color: deuda.estado == 'pagada' ? Colors.green : Colors.orange,
+                    color: deuda.estado == 'pagada' ? AppTheme.alertOk : AppTheme.alertCaution,
                   ),
-                  title: Text('${Formatters.monedaConSimbolo(deuda.montoTotal)}'),
+                  title: Text(Formatters.monedaConSimbolo(deuda.montoTotal)),
                   subtitle: Text('Pendiente: ${Formatters.monedaConSimbolo(deuda.montoPendiente)}'),
                   trailing: Chip(
                     label: Text(deuda.estado.toUpperCase()),
@@ -600,13 +718,13 @@ class _PersonasScreenState extends State<PersonasScreen> {
   Color _getColorEstado(String estado) {
     switch (estado) {
       case 'pagada':
-        return Colors.green[100]!;
+        return AppTheme.alertOk.withValues(alpha: 0.15);
       case 'parcial':
-        return Colors.orange[100]!;
+        return AppTheme.alertCaution.withValues(alpha: 0.15);
       case 'vencida':
-        return Colors.red[100]!;
+        return AppTheme.alertDanger.withValues(alpha: 0.15);
       default:
-        return Colors.grey[200]!;
+        return AppTheme.alertWarning.withValues(alpha: 0.12);
     }
   }
 
@@ -732,7 +850,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
                 );
               }
             },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: Text('Eliminar', style: TextStyle(color: AppTheme.alertDanger)),
           ),
         ],
       ),

@@ -3,8 +3,9 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/database/database.dart';
 import '../../core/services/exportacion_service.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/app_drawer.dart';
+import '../../core/widgets/widgets.dart';
 
 class ReportesScreen extends StatefulWidget {
   final AppDatabase database;
@@ -59,19 +60,15 @@ class _ReportesScreenState extends State<ReportesScreen> {
           ),
         ],
       ),
-      drawer: AppDrawer(
-        database: widget.database,
-        currentRoute: '/reportes',
-      ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.base),
         children: [
           _buildSelectorMes(),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.base),
           _buildResumenMes(),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.lg),
           _buildGastosPorCategoria(),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.lg),
           _buildEvolucionHistorica(),
         ],
       ),
@@ -94,7 +91,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
         ),
         Text(
           nombre,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.titleLarge,
         ),
         IconButton(
           icon: const Icon(Icons.chevron_right),
@@ -121,25 +118,25 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 'Ingresos',
                 r.ingresos,
                 Icons.arrow_downward,
-                Colors.green,
+                AppTheme.incomeColor,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: _buildResumenCard(
                 'Egresos',
                 r.egresos,
                 Icons.arrow_upward,
-                Colors.red,
+                AppTheme.expenseColor,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: _buildResumenCard(
                 'Balance',
                 r.ingresos - r.egresos,
                 Icons.account_balance,
-                r.ingresos >= r.egresos ? Colors.green : Colors.red,
+                r.ingresos >= r.egresos ? AppTheme.incomeColor : AppTheme.expenseColor,
               ),
             ),
           ],
@@ -150,24 +147,25 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   Widget _buildResumenCard(
       String titulo, double monto, IconData icon, Color color) {
+    final theme = Theme.of(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 6),
+            AppSemanticIcon(icon: icon, color: color, size: AppIconSize.sm),
+            const SizedBox(height: AppSpacing.sm),
             Text(titulo,
-                style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-            const SizedBox(height: 4),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                )),
+            const SizedBox(height: AppSpacing.xs),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 Formatters.monedaConSimbolo(monto.abs()),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: monto < 0 ? Colors.red : color,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: monto < 0 ? AppTheme.expenseColor : color,
                 ),
               ),
             ),
@@ -205,11 +203,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Gastos por Categoría',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
+                AppSectionHeader(title: 'Gastos por Categoría'),
+                const SizedBox(height: AppSpacing.base),
                 SizedBox(
                   height: 200,
                   child: Row(
@@ -295,12 +290,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   ),
                 ),
                 const Divider(height: 24),
-                const Text(
+                Text(
                   'TOP CATEGORÍAS',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w600),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.0,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 ...gastos.take(5).map((g) => _buildCategoriaRow(g, total)),
@@ -349,7 +345,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 6,
-              backgroundColor: Colors.grey[200],
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation(g.color),
             ),
           ),
@@ -380,15 +376,14 @@ class _ReportesScreenState extends State<ReportesScreen> {
               children: [
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Evolución últimos 6 meses',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const Spacer(),
-                    _buildLeyenda('Ingresos', Colors.green),
-                    const SizedBox(width: 12),
-                    _buildLeyenda('Egresos', Colors.red),
+                    _buildLeyenda('Ingresos', AppTheme.incomeColor),
+                    const SizedBox(width: AppSpacing.md),
+                    _buildLeyenda('Egresos', AppTheme.expenseColor),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -406,17 +401,17 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           barRods: [
                             BarChartRodData(
                               toY: m.ingresos,
-                              color: Colors.green,
+                              color: AppTheme.incomeColor,
                               width: 10,
                               borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(4)),
+                                  top: Radius.circular(AppRadius.sm)),
                             ),
                             BarChartRodData(
                               toY: m.egresos,
-                              color: Colors.red,
+                              color: AppTheme.expenseColor,
                               width: 10,
                               borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(4)),
+                                  top: Radius.circular(AppRadius.sm)),
                             ),
                           ],
                         );
@@ -469,9 +464,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
   Widget _buildLeyenda(String label, Color color) {
     return Row(
       children: [
-        Container(width: 10, height: 10, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11)),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, borderRadius: AppRadius.smBR),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
       ],
     );
   }
@@ -506,7 +505,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al exportar: $e')),
+          SnackBar(
+            content: Text('Error al exportar: $e'),
+            backgroundColor: AppTheme.alertDanger,
+          ),
         );
       }
     }

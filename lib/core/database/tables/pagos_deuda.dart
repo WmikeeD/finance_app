@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'deudas.dart';
+import 'transacciones.dart';
 
 /// Registro de pagos parciales o totales de una deuda
 @DataClassName('PagoDeuda')
@@ -20,6 +21,9 @@ class PagosDeuda extends Table {
   
   // Notas
   TextColumn get notas => text().nullable()();
-  
+
+  // Transacción de ingreso generada al cobrar esta deuda (nullable)
+  IntColumn get transaccionId => integer().nullable().references(Transacciones, #id, onDelete: KeyAction.setNull)();
+
   DateTimeColumn get creadoEn => dateTime().withDefault(currentDateAndTime)();
 }

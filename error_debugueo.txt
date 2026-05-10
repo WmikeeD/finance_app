@@ -1,0 +1,230 @@
+
+
+════════ Exception caught by rendering library ═════════════════════════════════
+The following assertion was thrown during performLayout():
+SliverGeometry is not valid: The "layoutExtent" exceeds the "paintExtent".
+The paintExtent is 64.0, but the layoutExtent is 70.0.
+The RenderSliver that returned the offending geometry was: _RenderSliverPinnedPersistentHeaderForWidgets#3d7f5 relayoutBoundary=up1 NEEDS-LAYOUT NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+    parentData: paintOffset=Offset(0.0, 0.0) (can use size)
+    constraints: SliverConstraints(AxisDirection.down, GrowthDirection.forward, ScrollDirection.idle, scrollOffset: 0.0, precedingScrollExtent: 200.0, remainingPaintExtent: 402.4, crossAxisExtent: 1265.6, crossAxisDirection: AxisDirection.right, viewportMainAxisExtent: 602.4, remainingCacheExtent: 652.4, cacheOrigin: 0.0)
+    geometry: SliverGeometry(scrollExtent: 70.0, paintExtent: 64.0, layoutExtent: 70.0, maxPaintExtent: 70.0, hasVisualOverflow: true, cacheExtent: 70.0)
+        scrollExtent: 70.0
+        paintExtent: 64.0
+        layoutExtent: 70.0
+        maxPaintExtent: 70.0
+        hasVisualOverflow: true
+        cacheExtent: 70.0
+    maxExtent: 70.0
+    child position: 0.0
+    child: _RenderColoredBox#43359 relayoutBoundary=up2 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+        parentData: <none> (can use size)
+        constraints: BoxConstraints(w=1265.6, 0.0<=h<=70.0)
+        size: Size(1265.6, 64.0)
+        behavior: opaque
+        child: RenderPadding#c098e relayoutBoundary=up3 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+            parentData: <none> (can use size)
+            constraints: BoxConstraints(w=1265.6, 0.0<=h<=70.0)
+            size: Size(1265.6, 64.0)
+            padding: EdgeInsets(16.0, 12.0, 16.0, 12.0)
+            textDirection: ltr
+            child: RenderFlex#330c7 relayoutBoundary=up4 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                parentData: offset=Offset(16.0, 12.0) (can use size)
+                constraints: BoxConstraints(w=1233.6, 0.0<=h<=46.0)
+                size: Size(1233.6, 40.0)
+                direction: horizontal
+                mainAxisAlignment: start
+                mainAxisSize: max
+                crossAxisAlignment: center
+                textDirection: ltr
+                verticalDirection: down
+                spacing: 0.0
+                child 1: RenderDecoratedBox#7ec1e relayoutBoundary=up5 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                    parentData: offset=Offset(0.0, 0.0); flex=null; fit=null (can use size)
+                    constraints: BoxConstraints(0.0<=w<=Infinity, 0.0<=h<=46.0)
+                    size: Size(40.0, 40.0)
+                    decoration: BoxDecoration
+                        color: MaterialColor(primary value: Color(alpha: 1.0000, red: 1.0000, green: 0.7569, blue: 0.0275, colorSpace: ColorSpace.sRGB))
+                        borderRadius: BorderRadius.circular(8.0)
+                    configuration: ImageConfiguration(bundle: PlatformAssetBundle#80c85(), devicePixelRatio: 1.3, locale: es_ES, textDirection: TextDirection.ltr, platform: windows)
+                child 2: RenderConstrainedBox#e18c0 relayoutBoundary=up5 NEEDS-PAINT
+                    parentData: offset=Offset(40.0, 20.0); flex=null; fit=null (can use size)
+                    constraints: BoxConstraints(0.0<=w<=Infinity, 0.0<=h<=46.0)
+                    size: Size(12.0, 0.0)
+                    additionalConstraints: BoxConstraints(w=12.0, 0.0<=h<=Infinity)
+                child 3: RenderFlex#a6c1c relayoutBoundary=up5 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                    parentData: offset=Offset(52.0, 1.5); flex=1; fit=FlexFit.tight (can use size)
+                    constraints: BoxConstraints(w=1091.4, 0.0<=h<=46.0)
+                    size: Size(1091.4, 37.0)
+                    direction: vertical
+                    mainAxisAlignment: start
+                    mainAxisSize: min
+                    crossAxisAlignment: start
+                    textDirection: ltr
+                    verticalDirection: down
+                    spacing: 0.0
+                child 4: RenderSemanticsAnnotations#9ff57 relayoutBoundary=up5 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                    parentData: offset=Offset(1143.4, 3.0); flex=null; fit=null (can use size)
+                    constraints: BoxConstraints(0.0<=w<=Infinity, 0.0<=h<=46.0)
+                    semantic boundary
+                    size: Size(90.2, 34.0)
+
+The relevant error-causing widget was:
+    SliverPersistentHeader SliverPersistentHeader:file:///C:/Users/Mayckol/Documents/finance_app/lib/features/proyeccion/proyeccion_screen.dart:292:13
+
+When the exception was thrown, this was the stack:
+#0      SliverGeometry.debugAssertIsValid.<anonymous closure>.verify (package:flutter/src/rendering/sliver.dart:870:9)
+#1      SliverGeometry.debugAssertIsValid.<anonymous closure> (package:flutter/src/rendering/sliver.dart:882:9)
+#2      SliverGeometry.debugAssertIsValid (package:flutter/src/rendering/sliver.dart:905:6)
+#3      RenderSliver.debugAssertDoesMeetConstraints (package:flutter/src/rendering/sliver.dart:1414:17)
+#4      RenderObject.layout.<anonymous closure> (package:flutter/src/rendering/object.dart:2778:9)
+#5      RenderObject.layout (package:flutter/src/rendering/object.dart:2780:8)
+#6      RenderViewportBase.layoutChildSequence (package:flutter/src/rendering/viewport.dart:673:13)
+#7      RenderViewport._attemptLayout (package:flutter/src/rendering/viewport.dart:1684:12)
+#8      RenderViewport.performLayout (package:flutter/src/rendering/viewport.dart:1575:20)
+#9      RenderObject._layoutWithoutResize (package:flutter/src/rendering/object.dart:2623:7)
+#10     PipelineOwner.flushLayout (package:flutter/src/rendering/object.dart:1170:18)
+#11     PipelineOwner.flushLayout (package:flutter/src/rendering/object.dart:1183:15)
+#12     RendererBinding.drawFrame (package:flutter/src/rendering/binding.dart:629:23)
+#13     WidgetsBinding.drawFrame (package:flutter/src/widgets/binding.dart:1264:13)
+#14     RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:495:5)
+#15     SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1434:15)
+#16     SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1347:9)
+#17     SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1200:5)
+#18     _invoke (dart:ui/hooks.dart:356:13)
+#19     PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:444:5)
+#20     _drawFrame (dart:ui/hooks.dart:328:31)
+
+The following RenderObject was being processed when the exception was fired: _RenderSliverPinnedPersistentHeaderForWidgets#3d7f5 relayoutBoundary=up1 NEEDS-LAYOUT NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+    parentData: paintOffset=Offset(0.0, 0.0) (can use size)
+    constraints: SliverConstraints(AxisDirection.down, GrowthDirection.forward, ScrollDirection.idle, scrollOffset: 0.0, precedingScrollExtent: 200.0, remainingPaintExtent: 402.4, crossAxisExtent: 1265.6, crossAxisDirection: AxisDirection.right, viewportMainAxisExtent: 602.4, remainingCacheExtent: 652.4, cacheOrigin: 0.0)
+    geometry: SliverGeometry(scrollExtent: 70.0, paintExtent: 64.0, layoutExtent: 70.0, maxPaintExtent: 70.0, hasVisualOverflow: true, cacheExtent: 70.0)
+        scrollExtent: 70.0
+        paintExtent: 64.0
+        layoutExtent: 70.0
+        maxPaintExtent: 70.0
+        hasVisualOverflow: true
+        cacheExtent: 70.0
+    maxExtent: 70.0
+    child position: 0.0
+    child: _RenderColoredBox#43359 relayoutBoundary=up2 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+        parentData: <none> (can use size)
+        constraints: BoxConstraints(w=1265.6, 0.0<=h<=70.0)
+        size: Size(1265.6, 64.0)
+        behavior: opaque
+        child: RenderPadding#c098e relayoutBoundary=up3 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+            parentData: <none> (can use size)
+            constraints: BoxConstraints(w=1265.6, 0.0<=h<=70.0)
+            size: Size(1265.6, 64.0)
+            padding: EdgeInsets(16.0, 12.0, 16.0, 12.0)
+            textDirection: ltr
+            child: RenderFlex#330c7 relayoutBoundary=up4 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                parentData: offset=Offset(16.0, 12.0) (can use size)
+                constraints: BoxConstraints(w=1233.6, 0.0<=h<=46.0)
+                size: Size(1233.6, 40.0)
+                direction: horizontal
+                mainAxisAlignment: start
+                mainAxisSize: max
+                crossAxisAlignment: center
+                textDirection: ltr
+                verticalDirection: down
+                spacing: 0.0
+                child 1: RenderDecoratedBox#7ec1e relayoutBoundary=up5 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                    parentData: offset=Offset(0.0, 0.0); flex=null; fit=null (can use size)
+                    constraints: BoxConstraints(0.0<=w<=Infinity, 0.0<=h<=46.0)
+                    size: Size(40.0, 40.0)
+                    decoration: BoxDecoration
+                        color: MaterialColor(primary value: Color(alpha: 1.0000, red: 1.0000, green: 0.7569, blue: 0.0275, colorSpace: ColorSpace.sRGB))
+                        borderRadius: BorderRadius.circular(8.0)
+                    configuration: ImageConfiguration(bundle: PlatformAssetBundle#80c85(), devicePixelRatio: 1.3, locale: es_ES, textDirection: TextDirection.ltr, platform: windows)
+                child 2: RenderConstrainedBox#e18c0 relayoutBoundary=up5 NEEDS-PAINT
+                    parentData: offset=Offset(40.0, 20.0); flex=null; fit=null (can use size)
+                    constraints: BoxConstraints(0.0<=w<=Infinity, 0.0<=h<=46.0)
+                    size: Size(12.0, 0.0)
+                    additionalConstraints: BoxConstraints(w=12.0, 0.0<=h<=Infinity)
+                child 3: RenderFlex#a6c1c relayoutBoundary=up5 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                    parentData: offset=Offset(52.0, 1.5); flex=1; fit=FlexFit.tight (can use size)
+                    constraints: BoxConstraints(w=1091.4, 0.0<=h<=46.0)
+                    size: Size(1091.4, 37.0)
+                    direction: vertical
+                    mainAxisAlignment: start
+                    mainAxisSize: min
+                    crossAxisAlignment: start
+                    textDirection: ltr
+                    verticalDirection: down
+                    spacing: 0.0
+                child 4: RenderSemanticsAnnotations#9ff57 relayoutBoundary=up5 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                    parentData: offset=Offset(1143.4, 3.0); flex=null; fit=null (can use size)
+                    constraints: BoxConstraints(0.0<=w<=Infinity, 0.0<=h<=46.0)
+                    semantic boundary
+                    size: Size(90.2, 34.0)
+RenderObject: _RenderSliverPinnedPersistentHeaderForWidgets#3d7f5 relayoutBoundary=up1 NEEDS-LAYOUT NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+    parentData: paintOffset=Offset(0.0, 0.0) (can use size)
+    constraints: SliverConstraints(AxisDirection.down, GrowthDirection.forward, ScrollDirection.idle, scrollOffset: 0.0, precedingScrollExtent: 200.0, remainingPaintExtent: 402.4, crossAxisExtent: 1265.6, crossAxisDirection: AxisDirection.right, viewportMainAxisExtent: 602.4, remainingCacheExtent: 652.4, cacheOrigin: 0.0)
+    geometry: SliverGeometry(scrollExtent: 70.0, paintExtent: 64.0, layoutExtent: 70.0, maxPaintExtent: 70.0, hasVisualOverflow: true, cacheExtent: 70.0)
+        scrollExtent: 70.0
+        paintExtent: 64.0
+        layoutExtent: 70.0
+        maxPaintExtent: 70.0
+        hasVisualOverflow: true
+        cacheExtent: 70.0
+    maxExtent: 70.0
+    child position: 0.0
+    child: _RenderColoredBox#43359 relayoutBoundary=up2 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+        parentData: <none> (can use size)
+        constraints: BoxConstraints(w=1265.6, 0.0<=h<=70.0)
+        size: Size(1265.6, 64.0)
+        behavior: opaque
+        child: RenderPadding#c098e relayoutBoundary=up3 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+            parentData: <none> (can use size)
+            constraints: BoxConstraints(w=1265.6, 0.0<=h<=70.0)
+            size: Size(1265.6, 64.0)
+            padding: EdgeInsets(16.0, 12.0, 16.0, 12.0)
+            textDirection: ltr
+            child: RenderFlex#330c7 relayoutBoundary=up4 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                parentData: offset=Offset(16.0, 12.0) (can use size)
+                constraints: BoxConstraints(w=1233.6, 0.0<=h<=46.0)
+                size: Size(1233.6, 40.0)
+                direction: horizontal
+                mainAxisAlignment: start
+                mainAxisSize: max
+                crossAxisAlignment: center
+                textDirection: ltr
+                verticalDirection: down
+                spacing: 0.0
+                child 1: RenderDecoratedBox#7ec1e relayoutBoundary=up5 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                    parentData: offset=Offset(0.0, 0.0); flex=null; fit=null (can use size)
+                    constraints: BoxConstraints(0.0<=w<=Infinity, 0.0<=h<=46.0)
+                    size: Size(40.0, 40.0)
+                    decoration: BoxDecoration
+                        color: MaterialColor(primary value: Color(alpha: 1.0000, red: 1.0000, green: 0.7569, blue: 0.0275, colorSpace: ColorSpace.sRGB))
+                        borderRadius: BorderRadius.circular(8.0)
+                    configuration: ImageConfiguration(bundle: PlatformAssetBundle#80c85(), devicePixelRatio: 1.3, locale: es_ES, textDirection: TextDirection.ltr, platform: windows)
+                child 2: RenderConstrainedBox#e18c0 relayoutBoundary=up5 NEEDS-PAINT
+                    parentData: offset=Offset(40.0, 20.0); flex=null; fit=null (can use size)
+                    constraints: BoxConstraints(0.0<=w<=Infinity, 0.0<=h<=46.0)
+                    size: Size(12.0, 0.0)
+                    additionalConstraints: BoxConstraints(w=12.0, 0.0<=h<=Infinity)
+                child 3: RenderFlex#a6c1c relayoutBoundary=up5 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                    parentData: offset=Offset(52.0, 1.5); flex=1; fit=FlexFit.tight (can use size)
+                    constraints: BoxConstraints(w=1091.4, 0.0<=h<=46.0)
+                    size: Size(1091.4, 37.0)
+                    direction: vertical
+                    mainAxisAlignment: start
+                    mainAxisSize: min
+                    crossAxisAlignment: start
+                    textDirection: ltr
+                    verticalDirection: down
+                    spacing: 0.0
+                child 4: RenderSemanticsAnnotations#9ff57 relayoutBoundary=up5 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE
+                    parentData: offset=Offset(1143.4, 3.0); flex=null; fit=null (can use size)
+                    constraints: BoxConstraints(0.0<=w<=Infinity, 0.0<=h<=46.0)
+                    semantic boundary
+                    size: Size(90.2, 34.0)
+════════════════════════════════════════════════════════════════════════════════
+
+════════ Exception caught by rendering library ═════════════════════════════════
+SliverGeometry is not valid: The "layoutExtent" exceeds the "paintExtent".
+The relevant error-causing widget was:
+    CustomScrollView CustomScrollView:file:///C:/Users/Mayckol/Documents/finance_app/lib/features/proyeccion/proyeccion_screen.dart:221:13
+════════════════════════════════════════════════════════════════════════════════
+Restarted application in 683ms.

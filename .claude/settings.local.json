@@ -4,7 +4,14 @@
       "Bash(flutter pub *)",
       "Bash(flutter analyze *)",
       "Bash(dart run *)",
-      "Bash(flutter build *)"
+      "Bash(flutter build *)",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\Mayckol\\\\.claude\" -Recurse -Depth 2)",
+      "Bash(Select-Object FullName, Name)",
+      "PowerShell(Get-Command *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "mcp-search"
+  ],
+  "enableAllProjectMcpServers": true
 }

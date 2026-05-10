@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   // Estrategia de migración
   @override
@@ -92,6 +92,26 @@ class AppDatabase extends _$AppDatabase {
             await migrator.addColumn(perfiles, perfiles.notifCuotas);
             await migrator.addColumn(perfiles, perfiles.notifDiasAntes);
             await migrator.addColumn(perfiles, perfiles.notifGastosFijos);
+          }
+
+          // Migración v8 → v9: columna transaccionId en PagosDeuda + categoría de cobro
+          if (from < 9) {
+            await migrator.addColumn(pagosDeuda, pagosDeuda.transaccionId);
+            final existe = await (select(categorias)
+                  ..where((c) =>
+                      c.nombre.equals('Cobro de Préstamo') &
+                      c.tipo.equals('ingreso')))
+                .getSingleOrNull();
+            if (existe == null) {
+              await into(categorias).insert(
+                CategoriasCompanion.insert(
+                  nombre: 'Cobro de Préstamo',
+                  tipo: 'ingreso',
+                  icono: const Value('people_alt'),
+                  color: const Value('#4CAF50'),
+                ),
+              );
+            }
           }
         },
       );
@@ -180,6 +200,12 @@ class AppDatabase extends _$AppDatabase {
         icono: const Value('account_balance_wallet'),
         color: const Value('#9C27B0'),
       ),
+      CategoriasCompanion.insert(
+        nombre: 'Cobro de Préstamo',
+        tipo: 'ingreso',
+        icono: const Value('people_alt'),
+        color: const Value('#4CAF50'),
+      ),
     ];
 
     for (final categoria in categoriasIngreso) {
@@ -229,6 +255,13 @@ class AppDatabase extends _$AppDatabase {
   // MÉTODOS DE GASTOS FIJOS
   // =============================================
 
+  Stream<List<Transaccion>> watchTransaccionesPaginadas(int limite) {
+    return (select(transacciones)
+          ..orderBy([(t) => OrderingTerm.desc(t.fecha)])
+          ..limit(limite))
+        .watch();
+  }
+
   Stream<List<GastoFijo>> watchGastosFijos({bool? soloActivos}) {
     final query = select(gastosFijos)
       ..orderBy([(g) => OrderingTerm.asc(g.diaVencimiento)]);
@@ -256,6 +289,110 @@ class AppDatabase extends _$AppDatabase {
           ..where((g) => g.activo.equals(true)))
         .get();
     return activos.fold<double>(0.0, (sum, g) => sum + g.monto);
+  }
+
+  // =============================================
+  // MÉTODOS DE COBRO DE DEUDAS
+  // =============================================
+
+  /// Vincula un pago a una deuda existente. Debe llamarse DENTRO de un bloque
+  /// transaction() del caller — no abre su propia transacción.
+  /// Crea el registro PagosDeuda, actualiza montoPendiente/estado de la Deuda
+  /// y marca cuotas pagadas si corresponde.
+  Future<void> vincularPagoConDeuda({
+    required int deudaId,
+    required int transaccionId,
+    required double monto,
+    String? notas,
+  }) async {
+    await into(pagosDeuda).insert(
+      PagosDeudaCompanion.insert(
+        deudaId: deudaId,
+        monto: monto,
+        transaccionId: Value(transaccionId),
+        notas: Value(notas),
+      ),
+    );
+
+    final deuda =
+        await (select(deudas)..where((d) => d.id.equals(deudaId))).getSingle();
+    final nuevoPendiente =
+        (deuda.montoPendiente - monto).clamp(0.0, double.infinity);
+    final nuevoPagado = deuda.montoPagado + monto;
+    final nuevoEstado = nuevoPendiente <= 0 ? 'pagada' : 'parcial';
+
+    await (update(deudas)..where((d) => d.id.equals(deudaId))).write(
+      DeudasCompanion(
+        montoPendiente: Value(nuevoPendiente),
+        montoPagado: Value(nuevoPagado),
+        estado: Value(nuevoEstado),
+        actualizadaEn: Value(DateTime.now()),
+      ),
+    );
+
+    if (deuda.tipo == 'cuotas') {
+      final pendientes = await (select(cuotas)
+            ..where((c) =>
+                c.transaccionId.equals(deuda.transaccionId) &
+                c.pagada.equals(false))
+            ..orderBy([(c) => OrderingTerm(expression: c.numeroCuota)]))
+          .get();
+
+      double restante = monto;
+      for (final cuota in pendientes) {
+        if (restante <= 0) break;
+        if (restante >= cuota.monto) {
+          await (update(cuotas)..where((c) => c.id.equals(cuota.id))).write(
+            CuotasCompanion(
+              pagada: const Value(true),
+              fechaPago: Value(DateTime.now()),
+            ),
+          );
+          restante -= cuota.monto;
+        }
+      }
+    }
+  }
+
+  /// Registra el cobro de una deuda desde PersonasScreen:
+  /// crea la transacción de ingreso, actualiza el saldo de la cuenta
+  /// y llama a [vincularPagoConDeuda] todo en una transacción atómica.
+  Future<void> registrarPagoDeuda({
+    required int deudaId,
+    required int cuentaId,
+    required double monto,
+    required String descripcion,
+    required int personaId,
+    required int categoriaCobroId,
+    String? notas,
+  }) async {
+    await transaction(() async {
+      final txId = await into(transacciones).insert(
+        TransaccionesCompanion.insert(
+          tipo: 'ingreso',
+          descripcion: descripcion,
+          montoTotal: monto,
+          formaPago: 'debito',
+          fecha: DateTime.now(),
+          cuentaId: cuentaId,
+          categoriaId: categoriaCobroId,
+          esPrestamo: const Value(false),
+          personaId: Value(personaId),
+        ),
+      );
+
+      final cuenta =
+          await (select(cuentas)..where((c) => c.id.equals(cuentaId)))
+              .getSingle();
+      await update(cuentas).replace(cuenta.copyWith(saldo: cuenta.saldo + monto));
+
+      await vincularPagoConDeuda(
+        deudaId: deudaId,
+        transaccionId: txId,
+        monto: monto,
+        notas: notas,
+      );
+    });
   }
 }
 
