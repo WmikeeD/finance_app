@@ -1,0 +1,560 @@
+================================================================================
+  FINANCE APP — DOCUMENTACIÓN COMPLETA DEL PROYECTO
+  Versión: 1.0 (DB Schema v9)
+  Fecha: Mayo 2026
+================================================================================
+
+
+1. OBJETIVO DEL PROYECTO
+────────────────────────
+Finance App es una aplicación móvil y de escritorio de finanzas personales
+desarrollada en Flutter. Está diseñada para que una sola persona administre
+de manera integral su economía personal: registrar ingresos y egresos,
+controlar el crédito en cuotas, gestionar préstamos a terceros, proyectar
+su situación financiera a futuro y generar reportes visuales exportables.
+
+El objetivo central es dar al usuario una visión completa y en tiempo real
+de su estado financiero, con especial énfasis en:
+
+  • El control de compras a crédito y sus cuotas pendientes
+  • Los préstamos realizados a otras personas y su recuperación
+  • La proyección de cuándo quedará libre de deudas
+  • La identificación de patrones de gasto mediante reportes
+
+No es una aplicación multiusuario. Está diseñada para un único perfil
+(singleton id=1) instalado localmente, con datos almacenados en SQLite
+directamente en el dispositivo, sin dependencia de servidores externos.
+
+
+2. STACK TECNOLÓGICO
+────────────────────
+  Lenguaje:       Dart 3.10+
+  Framework:      Flutter (Material Design 3)
+  Base de datos:  Drift (ORM sobre SQLite, code generation con build_runner)
+  Gráficos:       fl_chart (gráficos de barras y torta)
+  Exportación:    share_plus + pdf (generación de reportes en PDF)
+  Notificaciones: flutter_local_notifications
+  Formato:        intl (locale es_CL, formato moneda CLP $9.000)
+  Plataformas:    Android, iOS, Windows (desktop)
+
+  Build Android:  Gradle 8.7 / AGP 8.6.0 / Kotlin 2.1.0 / Java 17
+  State management: StreamBuilder + Drift Streams reactivos (sin BLoC ni Provider)
+
+
+3. ARQUITECTURA
+───────────────
+La aplicación sigue una arquitectura por features (Feature-first), con una
+capa core compartida. No utiliza un patrón arquitectónico formal (no hay
+BLoC, Riverpod ni Provider); el estado reactivo se maneja directamente con
+Streams de Drift escuchados por StreamBuilder en la UI.
+
+3.1 Estructura de directorios
+──────────────────────────────
+  lib/
+  ├── main.dart                        → Punto de entrada, AppShell como home
+  ├── core/
+  │   ├── database/
+  │   │   ├── database.dart            → AppDatabase (Drift, schema v9, DAOs)
+  │   │   ├── database.g.dart          → Código generado por build_runner
+  │   │   └── tables/                  → Definición de cada tabla Drift
+  │   │       ├── cuentas.dart
+  │   │       ├── categorias.dart
+  │   │       ├── personas.dart
+  │   │       ├── transacciones.dart
+  │   │       ├── cuotas.dart
+  │   │       ├── perfil.dart
+  │   │       ├── deudas.dart
+  │   │       ├── pagos_deuda.dart
+  │   │       └── gastos_fijos.dart
+  │   ├── navigation/
+  │   │   └── app_tab_controller.dart  → Hub centralizado de navegación
+  │   ├── services/
+  │   │   ├── exportacion_service.dart → CSV + PDF + share_plus
+  │   │   └── notification_service.dart → Notificaciones locales
+  │   ├── theme/
+  │   │   └── app_theme.dart           → ThemeData, tokens de color, espaciado
+  │   ├── utils/
+  │   │   └── formatters.dart          → Formateo de moneda, fechas
+  │   └── widgets/                     → Componentes reutilizables
+  │       ├── widgets.dart             → Barrel export
+  │       ├── app_shell.dart           → Bottom Navigation + IndexedStack
+  │       ├── app_drawer.dart          → Drawer lateral de navegación
+  │       ├── app_empty_state.dart
+  │       ├── app_error_state.dart
+  │       ├── app_filter_bar.dart
+  │       ├── app_info_banner.dart
+  │       ├── app_section_header.dart
+  │       ├── app_semantic_icon.dart
+  │       └── app_amount_text.dart
+  └── features/
+      ├── home/
+      │   └── home_screen.dart         → Dashboard principal
+      ├── transacciones/
+      │   └── transacciones_screen.dart
+      ├── reportes/
+      │   └── reportes_screen.dart
+      ├── proyeccion/
+      │   ├── proyeccion_screen.dart
+      │   ├── models/
+      │   └── widgets/
+      ├── cuentas/
+      │   └── cuentas_screen.dart
+      ├── categorias/
+      │   └── categorias_screen.dart
+      ├── personas/
+      │   └── personas_screen.dart
+      ├── gastos_fijos/
+      │   └── gastos_fijos_screen.dart
+      ├── configuracion/
+      │   └── configuracion_screen.dart
+      └── notificaciones/
+          └── notificaciones_panel.dart
+
+3.2 Navegación
+──────────────
+La app tiene dos niveles de navegación:
+
+  Nivel 1 — Tabs principales (AppShell):
+    Usa AppTabController, un ValueNotifier<int> estático centralizado.
+    La barra inferior (NavigationBar) y el AppDrawer escuchan este notifier.
+    5 tabs: Home (0), Transacciones (1), Reportes (2), Proyección (3),
+            Configuración (4).
+    Regla crítica: NUNCA navegar a una tab con Navigator.push(). Siempre
+    usar AppTabController.goToTab() o sus atajos:
+      - AppTabController.goToHome()
+      - AppTabController.goToTransacciones()
+      - AppTabController.goToReportes()
+      - AppTabController.goToProyeccion()
+      - AppTabController.goToConfig()
+
+  Nivel 2 — Pantallas de datos (Navigator):
+    Cuentas, Categorías, Personas, Gastos Fijos y otras pantallas
+    secundarias se abren con Navigator.push() sobre el stack principal.
+
+  AppDrawer:
+    Muestra ambos niveles. Ítems de tab usan AppTabController.
+    Ítems de datos usan Navigator.push().
+
+3.3 Persistencia
+────────────────
+  Drift (ORM sobre SQLite) genera código a partir de las definiciones de
+  tabla en lib/core/database/tables/. La base de datos se almacena en el
+  directorio de documentos del dispositivo como finance_app.db.
+
+  Principios:
+  • Operaciones atómicas siempre dentro de widget.database.transaction()
+  • Estado reactivo via .watch() → StreamBuilder (nunca polling)
+  • Companions con drift.Value(x) para columnas opcionales
+
+3.4 Design System
+─────────────────
+  Tokens de color semánticos (AppTheme):
+    incomeColor   = #2E7D32 (verde oscuro)  → ingresos
+    expenseColor  = #C62828 (rojo oscuro)   → egresos
+    savingsColor  = #1565C0 (azul oscuro)   → ahorros
+    creditColor   = #6A1B9A (morado)        → crédito
+    alertDanger / alertWarning / alertCaution / alertOk / alertCelebrate
+
+  Espaciado (AppSpacing): xs=4, sm=8, md=12, base=16, lg=20, xl=24, xxl=32
+  Radios (AppRadius): sm=4, md=8, lg=12, xl=16, xxl=20
+
+  Componentes reutilizables:
+    AppEmptyState    → Pantalla vacía con ícono, título, botón CTA
+    AppErrorState    → Error con mensaje
+    AppFilterBar     → Barra de búsqueda + chips de filtro
+    AppSectionHeader → Encabezado de sección con trailing
+    AppInfoBanner    → Banner informativo (info/warning/danger/success)
+    AppSemanticIcon  → Ícono con fondo de color semántico
+    AppAmountText    → Texto de monto con color automático según tipo
+
+
+4. ESQUEMA DE BASE DE DATOS (v9)
+─────────────────────────────────
+La base de datos contiene 9 tablas. Las migraciones van de v1 a v9 y se
+aplican automáticamente al actualizar la app.
+
+  CUENTAS
+    id, nombre, tipo, saldo, meta?, icono?, color, diaCierre?, diaPago?,
+    sincronizado, syncId?, creadaEn, actualizadaEn
+    tipo: 'efectivo' | 'debito' | 'credito' | 'ahorro'
+    Las cuentas crédito tienen diaCierre y diaPago para calcular cuotas.
+
+  CATEGORIAS
+    id, nombre, tipo, icono?, color, creadaEn
+    tipo: 'ingreso' | 'egreso'
+    Seed de instalación: 8 egresos + 5 ingresos (incluye "Cobro de Préstamo")
+
+  PERSONAS
+    id, nombre, telefono?, email?, relacion?, notas?, avatar?, color,
+    activa, creadaEn, actualizadaEn
+    avatar: iniciales de 1-2 caracteres para el CircleAvatar
+
+  TRANSACCIONES
+    id, tipo, descripcion, montoTotal, formaPago, fecha, cuentaId,
+    categoriaId, personaId?, esPrestamo, cantidadCuotas?, valorCuota?,
+    montoTotalConInteres?, interesTotal?, sincronizado, syncId?,
+    creadaEn, actualizadaEn
+    tipo: 'ingreso' | 'egreso'
+    formaPago: 'debito' | 'credito' | 'efectivo'
+    esPrestamo=true indica que otra persona debe ese dinero
+
+  CUOTAS
+    id, transaccionId (FK→Transacciones cascade), numeroCuota, monto,
+    fechaVencimiento, pagada, fechaPago?
+    Se crean automáticamente al registrar una compra a crédito.
+
+  PERFILES (singleton id=1)
+    id, nombre?, email?, monedaSimbolo, localeCodigo, temaOscuro,
+    colorDinamico, balanceMinimo?, balanceMaximo?, notifCuotas,
+    notifDiasAntes, notifGastosFijos
+
+  DEUDAS
+    id, personaId (FK→Personas cascade), transaccionId (FK→Transacciones
+    cascade, UNIQUE), tipo, montoTotal, montoPendiente, montoPagado,
+    fechaAcordadaPago?, estado, notas?, creadaEn, actualizadaEn
+    tipo: 'simple' | 'cuotas'
+    estado: 'pendiente' | 'parcial' | 'pagada' | 'vencida'
+    UNIQUE(transaccionId): cada transacción puede tener solo una deuda.
+
+  PAGOS_DEUDA (actualizado v9)
+    id, deudaId (FK→Deudas cascade), monto, fechaPago, metodoPago,
+    notas?, transaccionId? (FK→Transacciones setNull, NUEVO EN v9),
+    creadoEn
+    transaccionId vincula el pago al ingreso generado al cobrar la deuda.
+
+  GASTOS_FIJOS
+    id, nombre, monto, diaVencimiento, activo, icono?, color,
+    creadoEn, actualizadaEn
+
+
+5. FUNCIONALIDADES DISPONIBLES PARA EL USUARIO
+────────────────────────────────────────────────
+
+5.1 DASHBOARD (Home)
+────────────────────
+  Pantalla principal que muestra un resumen financiero con acceso rápido
+  a todas las secciones.
+
+  • Balance total de todas las cuentas (suma de saldos)
+  • Indicadores de ingresos y egresos del mes en curso
+  • Badge de notificaciones en la campana (conteo de alertas activas)
+  • Panel de notificaciones (ver sección 5.9) al tocar la campana
+  • Quick Actions (6 accesos directos en grid 3×2):
+      - Cuentas, Reportes, Proyección, Personas, Categorías, Gastos Fijos
+  • Acceso al Drawer lateral con todas las secciones de la app
+
+5.2 TRANSACCIONES
+─────────────────
+  Registro y consulta de todos los movimientos financieros.
+
+  LISTADO:
+    • Lista de transacciones ordenadas por fecha (más recientes primero)
+    • Paginación de 50 en 50 con botón "Cargar más"
+    • Barra de filtros: por tipo (ingreso/egreso), categoría, búsqueda
+      por texto en descripción
+    • Cada ítem muestra: ícono de categoría, descripción, fecha, monto
+      con color verde (ingreso) o rojo (egreso)
+    • Tap largo sobre una transacción → editar
+    • Tap sobre una transacción → ver detalle completo
+
+  NUEVA TRANSACCIÓN (botón +):
+    El formulario tiene los siguientes campos:
+
+    Tipo: ingreso o egreso (dropdown)
+    Descripción: texto libre
+    Monto: numérico
+    Cuenta: selección entre cuentas registradas
+    Categoría: filtrada según el tipo seleccionado
+
+    — Si la cuenta es tipo 'crédito', aparece:
+    Forma de pago: débito (inmediato) o crédito (cuotas)
+
+    — Si forma de pago es 'crédito':
+    Número de cuotas / Valor de cada cuota
+
+    — Si tipo es 'egreso':
+    Checkbox "Es un préstamo a tercero":
+      Al activar → selector de Persona que debe el dinero
+      Al guardar: crea la transacción + una Deuda vinculada a esa persona
+
+    Checkbox "Gasto compartido" (incompatible con préstamo):
+      Al activar → checkboxes de personas + toggle "Incluirme en el reparto"
+      Muestra preview del monto de cada persona (total ÷ participantes)
+      Al guardar: crea transacción principal + sub-transacciones por persona
+      (cada una crea una Deuda simple para cobro posterior)
+
+    — Si tipo es 'ingreso':
+    Checkbox "Es cobro de préstamo":
+      Al activar → selector de persona → selector de deuda pendiente
+      Al seleccionar deuda: auto-rellena el monto con lo pendiente
+      Al guardar: registra el ingreso + actualiza la deuda (parcial o total)
+
+  EDITAR TRANSACCIÓN:
+    • Editar descripción, categoría, monto y fecha
+    • Si se edita el monto, recalcula el saldo de la cuenta afectada
+
+5.3 CUENTAS
+───────────
+  Administración de cuentas financieras del usuario.
+
+  • Ver listado de cuentas con saldo actual, tipo e ícono
+  • Crear nueva cuenta: nombre, tipo, saldo inicial, color, ícono
+      Tipos disponibles: Efectivo, Débito, Crédito, Ahorro
+      Cuentas crédito: configurar día de cierre y día de pago
+  • Editar cuenta: todos los campos excepto tipo
+  • Eliminar cuenta (con confirmación)
+  • Ver meta de ahorro si está configurada
+  • El saldo se actualiza automáticamente con cada transacción
+
+5.4 CATEGORÍAS
+──────────────
+  Organización de los tipos de ingreso y egreso.
+
+  • Ver categorías de ingreso y egreso en listas separadas
+  • Crear nueva categoría: nombre, tipo, ícono, color
+  • Editar categoría existente
+  • Eliminar categoría (con confirmación)
+  Categorías de egreso predefinidas:
+    Alimentación, Transporte, Vivienda, Salud, Entretenimiento,
+    Educación, Servicios, Préstamos
+  Categorías de ingreso predefinidas:
+    Salario, Freelance, Inversiones, Otros ingresos, Cobro de Préstamo
+
+5.5 PERSONAS
+─────────────
+  Gestión de personas involucradas en préstamos y gastos compartidos.
+
+  LISTADO DE PERSONAS:
+    • Tarjeta por persona con avatar (iniciales + color), nombre, relación
+    • Si la persona tiene deudas pendientes: badge rojo con el total que debe
+    • Tap sobre una persona → ver sus deudas específicas
+    • Botón "..." → ver info detallada / eliminar persona
+    • FAB "Nueva Persona" → crear con nombre, relación, teléfono
+
+  RESUMEN GLOBAL DE DEUDAS (ícono de cartera en AppBar):
+    • Lista todas las deudas pendientes y parciales de todas las personas
+    • Monto total pendiente en chip
+    • Cada deuda muestra: persona, descripción original, monto pendiente
+      vs total, barra de progreso, tipo (cuotas/pago único)
+    • Para deudas a cuotas: muestra la próxima cuota con semáforo de
+      días restantes (verde/amarillo/rojo)
+    • Botón "Cobrar deuda" en cada deuda
+
+  COBRAR DEUDA (desde PersonasScreen):
+    Al tocar "Cobrar deuda" se abre un bottom sheet con:
+      • Información de la deuda: total y monto pendiente
+      • Campo de monto (pre-llenado con el total pendiente, editable para
+        pagos parciales)
+      • Selector de cuenta donde ingresará el dinero
+      • Notas opcionales
+    Al guardar (de forma atómica):
+      1. Crea una Transacción de ingreso en la cuenta seleccionada
+      2. Actualiza el saldo de la cuenta
+      3. Registra el pago en PagosDeuda vinculado a la transacción
+      4. Actualiza la Deuda: reduce montoPendiente, actualiza estado
+         ('parcial' si queda saldo, 'pagada' si queda en cero)
+      5. Si la deuda era a cuotas: marca las cuotas correspondientes
+         como pagadas en orden cronológico
+    Muestra SnackBar con link "Ver transacciones"
+    Pagos parciales dejan la deuda en estado 'parcial' para cobros futuros
+
+5.6 GASTOS FIJOS
+────────────────
+  Control de compromisos financieros recurrentes mensuales.
+
+  • Listado de gastos fijos ordenados por día de vencimiento
+  • Ver total mensual de gastos fijos activos
+  • Crear gasto fijo: nombre, monto, día de vencimiento del mes,
+    ícono, color
+  • Activar / desactivar gasto fijo (toggle)
+  • Editar y eliminar (con confirmación)
+  • Los gastos fijos activos se usan en el cálculo de la Proyección
+
+5.7 REPORTES
+─────────────
+  Visualización gráfica del comportamiento financiero.
+
+  • Gráfico de torta (PieChart): distribución del gasto por categoría
+  • Gráfico de barras (BarChart): ingresos vs egresos por mes
+  • Filtros: rango de fechas, cuenta específica
+  • Exportar reporte:
+      - PDF: gráficos + tabla de transacciones del período
+      - CSV: datos crudos de transacciones para análisis externo
+  • Compartir via share_plus (WhatsApp, email, Drive, etc.)
+
+5.8 PROYECCIÓN FINANCIERA
+──────────────────────────
+  Simulación de la situación financiera futura mes a mes.
+
+  FILTROS DE PROYECCIÓN:
+    • Mes de inicio
+    • Cuenta específica (todas o una)
+    • Número de meses a proyectar (hasta 12)
+    • Incluir gastos fijos (suma el total mensual a los egresos)
+    • Ingreso mensual (sueldo) para calcular sobrante
+    • Incluir préstamos a cobrar (selección de deudas con fecha acordada)
+
+  VISUALIZACIÓN:
+    • Gráfico de barras interactivo: egresos (cuotas) vs ingresos por mes
+    • Tabla de detalle por mes: cuotas vencentes, gastos fijos, ingresos,
+      egresos totales y sobrante estimado
+    • Banner de "Mes de Liberación": muestra el mes en que vence la última
+      cuota pendiente y cuántos meses faltan (se mantiene visible al scroll)
+
+  El encabezado de filtros se colapsa al hacer scroll para maximizar
+  el área de visualización.
+
+5.9 PANEL DE NOTIFICACIONES
+─────────────────────────────
+  Accesible desde la campana del Dashboard con badge de conteo.
+
+  Muestra tres categorías de alertas:
+    1. Cuotas próximas (próximos 30 días, no pagadas):
+       Cada cuota muestra descripción, cuenta, fecha y días restantes
+       con semáforo visual (verde >5d / amarillo 2-5d / rojo <2d / vencida)
+
+    2. Gastos fijos próximos (vencen en los próximos 7 días del mes):
+       Nombre, monto y día de vencimiento
+
+    3. Deudas pendientes (estado != 'pagada'):
+       Nombre de la persona, monto pendiente y estado de la deuda
+
+  Las secciones vacías no se muestran. Si no hay alertas, muestra
+  un estado vacío con mensaje tranquilizador.
+
+5.10 CONFIGURACIÓN
+──────────────────
+  Ajustes de la aplicación y del perfil de usuario.
+
+  • Nombre y email del perfil
+  • Tema: claro / oscuro / sistema
+  • Color dinámico (Material You en Android 12+)
+  • Alertas de balance: mínimo y máximo para notificaciones
+  • Configuración de notificaciones locales:
+      - Activar/desactivar alertas de cuotas
+      - Días de anticipación para alertas de cuotas
+      - Activar/desactivar alertas de gastos fijos
+
+
+6. FLUJOS PRINCIPALES DETALLADOS
+──────────────────────────────────
+
+6.1 Flujo: Compra a crédito con cuotas
+  1. Transacciones → Nueva Transacción
+  2. Tipo: Egreso / Descripción / Monto base
+  3. Seleccionar cuenta de crédito
+  4. Forma de pago: Crédito (cuotas)
+  5. Ingresar número de cuotas y valor de cada cuota
+  6. Guardar → Crea Transacción + N registros Cuota con fechas automáticas
+     calculadas según el día de cierre y día de pago de la tarjeta
+  7. La proyección mostrará cada cuota en su mes correspondiente
+
+6.2 Flujo: Préstamo a una persona
+  1. Transacciones → Nueva Transacción
+  2. Tipo: Egreso / Descripción / Monto
+  3. Activar "Es un préstamo a tercero"
+  4. Seleccionar la persona
+  5. Guardar → Crea Transacción(egreso) + Deuda vinculada a esa persona
+
+6.3 Flujo: Cobrar préstamo a una persona
+  DESDE PERSONAS:
+  1. Personas → tocar persona → ver deudas
+  2. "Cobrar deuda" en la deuda deseada
+  3. Ingresar monto (puede ser parcial), seleccionar cuenta de destino
+  4. Guardar → Ingreso en cuenta + Deuda actualizada
+
+  DESDE TRANSACCIONES:
+  1. Transacciones → Nueva Transacción
+  2. Tipo: Ingreso / Descripción / Monto
+  3. Activar "Es cobro de préstamo"
+  4. Seleccionar persona → seleccionar su deuda (el monto se auto-completa)
+  5. Guardar → Ingreso en cuenta + Deuda actualizada
+
+6.4 Flujo: Gasto compartido
+  1. Transacciones → Nueva Transacción
+  2. Tipo: Egreso / Descripción / Monto total
+  3. Activar "Gasto compartido"
+  4. Marcar las personas que participan + toggle "Incluirme"
+  5. Ver preview de cuánto corresponde a cada uno
+  6. Guardar → Transacción principal + Sub-transacción por persona
+     + Deuda simple para cada persona participante
+
+6.5 Flujo: Ver proyección financiera
+  1. Ir a tab Proyección
+  2. Configurar filtros (mes inicio, meses a ver, cuenta, sueldo)
+  3. Opcionalmente activar gastos fijos e incluir cobros de préstamos
+  4. Ver gráfico de barras y tabla detallada por mes
+  5. Identificar el "Mes de Liberación" (cuando vence la última cuota)
+
+
+7. COMPORTAMIENTOS TÉCNICOS IMPORTANTES
+─────────────────────────────────────────
+
+7.1 Transacciones atómicas
+  Toda operación que toca múltiples tablas (crear transacción + cuotas +
+  deuda + saldo de cuenta) ocurre dentro de un único bloque transaction()
+  de Drift. Si cualquier paso falla, todos los cambios se revierten.
+
+7.2 Reactividad automática
+  Todas las pantallas que muestran listas usan StreamBuilder con .watch()
+  de Drift. Cuando se inserta o actualiza un registro, las pantallas que
+  muestran ese dato se actualizan automáticamente sin polling ni setState
+  manual.
+
+7.3 Migración de base de datos
+  Al actualizar la app de una versión anterior, onUpgrade() aplica solo
+  los pasos de migración necesarios según la versión actual del usuario.
+  Cada versión de la DB tiene su propio bloque if (from < N).
+
+7.4 Seed data
+  La primera vez que se instala la app, onCreate() inserta las categorías
+  predefinidas, una cuenta "Efectivo" y el perfil por defecto. Esto
+  garantiza que la app sea usable desde el primer momento.
+
+7.5 Pagos parciales de deuda
+  montoPendiente nunca queda negativo (clamp a 0). Si se cobra más del
+  total, la validación lo rechaza en la UI antes de ejecutar cualquier
+  operación de base de datos.
+
+
+8. CONVENCIONES DE CÓDIGO
+──────────────────────────
+
+8.1 Flutter / Dart
+  • DropdownButtonFormField: initialValue + key: ValueKey(value)
+    (NO usar value: porque está deprecado)
+  • Color.withValues(alpha: x) en lugar de withOpacity() (deprecado)
+  • StatefulBuilder dentro de dialogs/sheets para estado local
+  • ScaffoldMessenger.of(ctx) usando el context del builder, no el padre
+  • Formularios simples → showModalBottomSheet con StatefulBuilder
+  • Confirmaciones → AlertDialog simple con botón rojo para destructivas
+
+8.2 Drift
+  • Siempre transaction() para operaciones multi-tabla
+  • drift.Value(x) para columnas opcionales en companions
+  • Streams .watch() para UI reactiva
+  • vincularPagoConDeuda() NO abre su propia transaction (el caller lo hace)
+
+8.3 Análisis estático
+  flutter analyze debe reportar 0 issues antes de cualquier commit.
+  El proyecto usa lint estricto heredado de Flutter.
+
+
+9. PENDIENTES / ROADMAP FASE 3
+────────────────────────────────
+  1. Sincronización con Supabase
+     (las tablas ya tienen syncId y sincronizado preparados)
+  2. Backup automático a Google Drive
+  3. Importación de movimientos desde CSV bancario
+  4. Tests unitarios e integración (actualmente: ninguno)
+  5. Análisis predictivo y tendencias de gasto
+  6. Soporte multi-moneda
+  7. Pantalla de Ayuda (actualmente Placeholder en el Drawer)
+  8. Modificar constraint UNIQUE(transaccionId) en Deudas para permitir
+     múltiples deudas por transacción (requiere recreación de tabla SQLite)
+
+
+================================================================================
+  Generado automáticamente el 2026-05-10
+  Proyecto: Finance App — Flutter + Drift (SQLite)
+================================================================================
