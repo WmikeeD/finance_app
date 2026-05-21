@@ -20,7 +20,7 @@ class AppErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: AppTheme.alertDanger),
+            Icon(Icons.error_outline, size: 48, color: AppColors.alertDanger),
             const SizedBox(height: AppSpacing.md),
             Text(
               'Ocurrió un error',

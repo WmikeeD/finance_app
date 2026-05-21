@@ -33,12 +33,12 @@ class GraficoBarras extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildLeyenda('Cuotas', AppTheme.savingsColor),
+              _buildLeyenda('Cuotas', AppTheme.savingsColor(context)),
               const SizedBox(width: AppSpacing.base),
-              if (incluirGastosFijos) _buildLeyenda('Fijos', AppTheme.alertCaution),
+              if (incluirGastosFijos) _buildLeyenda('Fijos', AppColors.alertCaution),
               if (sueldo != null) ...[
                 const SizedBox(width: AppSpacing.base),
-                _buildLeyenda('Sueldo', AppTheme.expenseColor, isLinea: true),
+                _buildLeyenda('Sueldo', AppTheme.expenseColor(context), isLinea: true),
               ],
             ],
           ),
@@ -50,7 +50,7 @@ class GraficoBarras extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: meses.map((mes) => _buildBarra(mes, maxValor)).toList(),
+                children: meses.map((mes) => _buildBarra(context, mes, maxValor)).toList(),
               ),
             ),
           ),
@@ -73,7 +73,7 @@ class GraficoBarras extends StatelessWidget {
     );
   }
 
-  Widget _buildBarra(MesProyeccion mes, double maxValor) {
+  Widget _buildBarra(BuildContext context, MesProyeccion mes, double maxValor) {
     final alturaCuotas = ((mes.totalCuotas / maxValor) * 200).toDouble();
     final alturaFijos = incluirGastosFijos 
         ? ((mes.totalGastosFijos / maxValor) * 200).toDouble()
@@ -108,7 +108,7 @@ class GraficoBarras extends StatelessWidget {
                   Container(
                     width: 50,
                     height: 2,
-                    color: AppTheme.expenseColor,
+                    color: AppTheme.expenseColor(context),
                     margin: EdgeInsets.only(bottom: alturaSueldo),
                   ),
 
@@ -117,7 +117,7 @@ class GraficoBarras extends StatelessWidget {
                   Container(
                     width: 40,
                     height: alturaFijos,
-                    color: AppTheme.alertCaution.withValues(alpha: 0.6),
+                    color: AppColors.alertCaution.withValues(alpha: 0.6),
                   ),
 
                 // Barra de cuotas
@@ -125,9 +125,9 @@ class GraficoBarras extends StatelessWidget {
                   width: 40,
                   height: alturaCuotas,
                   decoration: BoxDecoration(
-                    color: esLiberacion ? AppTheme.alertCelebrate : AppTheme.savingsColor,
+                    color: esLiberacion ? AppColors.alertCelebrate : AppTheme.savingsColor(context),
                     border: esLiberacion
-                        ? Border.all(color: AppTheme.alertWarning, width: 2)
+                        ? Border.all(color: AppColors.alertWarning, width: 2)
                         : null,
                     borderRadius: AppRadius.smBR,
                   ),

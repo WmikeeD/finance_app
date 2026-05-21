@@ -41,9 +41,8 @@ class _MyAppState extends State<MyApp> {
   Future<void> _cargarColorInicial() async {
     final perfil = await widget.database.obtenerPerfil();
     if (perfil == null) return;
-    if (!perfil.colorDinamico) {
-      AppTheme.setColorFromHex(perfil.colorPrimario);
-    }
+    // Color dinámico ya no está soportado en la versión M3
+    // El color primario está fijo en app_theme.dart
   }
 
   Future<void> _iniciarNotificaciones() async {
@@ -71,29 +70,9 @@ class _MyAppState extends State<MyApp> {
                 ? ThemeMode.dark
                 : ThemeMode.light;
 
-        // Color dinámico: observa las cuentas en tiempo real
-        if (perfil?.colorDinamico == true) {
-          return StreamBuilder<List<Cuenta>>(
-            stream: widget.database.select(widget.database.cuentas).watch(),
-            builder: (context, cuentasSnap) {
-              final cuentas = cuentasSnap.data ?? [];
-              final balance = cuentas
-                  .where((c) => c.tipo == 'efectivo' || c.tipo == 'debito')
-                  .fold<double>(0, (s, c) => s + c.saldo);
+        // Color dinámico deshabilitado en M3 (el tema es estático)
 
-              AppTheme.setPrimaryColor(AppTheme.calcularColorDinamico(
-                balance,
-                perfil!.balanceMinimo,
-                perfil.balanceMaximo,
-              ));
-
-              return _buildApp(themeMode);
-            },
-          );
-        }
-
-        // Color estático del perfil
-        if (perfil != null) AppTheme.setColorFromHex(perfil.colorPrimario);
+        // Color estático ya no soportado en M3 - el color es fijo
         return _buildApp(themeMode);
       },
     );
@@ -113,8 +92,8 @@ class _MyAppState extends State<MyApp> {
         Locale('en', 'US'),
       ],
       locale: const Locale('es', 'ES'),
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       routes: {
         '/proyeccion': (context) =>

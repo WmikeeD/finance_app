@@ -21,11 +21,11 @@ class DetalleMeses extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       itemCount: meses.length,
-      itemBuilder: (context, index) => _buildMesCard(meses[index]),
+      itemBuilder: (context, index) => _buildMesCard(context, meses[index]),
     );
   }
 
-  Widget _buildMesCard(MesProyeccion mes) {
+  Widget _buildMesCard(BuildContext context, MesProyeccion mes) {
     final colorIndicador = _getColorIndicador(mes.sobrante, mes.totalIngresos);
 
     return Card(
@@ -51,7 +51,7 @@ class DetalleMeses extends StatelessWidget {
                   if (mes.esMesLiberacion)
                     const Chip(
                       label: Text('🎉 LIBERACIÓN'),
-                      backgroundColor: AppTheme.alertCelebrate,
+                      backgroundColor: AppColors.alertCelebrate,
                     ),
                 ],
               ),
@@ -70,7 +70,7 @@ class DetalleMeses extends StatelessWidget {
                   'Préstamo ${p.nombrePersona}',
                   p.monto,
                   icon: Icons.arrow_circle_up,
-                  color: AppTheme.incomeColor,
+                  color: AppTheme.incomeColor(context),
                 )),
                 _buildFila('Total ingresos', mes.totalIngresos, isTotal: true),
                 const SizedBox(height: 12),
@@ -205,9 +205,9 @@ class DetalleMeses extends StatelessWidget {
   Color _getColorIndicador(double sobrante, double ingresos) {
     if (ingresos == 0) return Colors.grey;
     final porcentaje = sobrante / ingresos;
-    if (porcentaje < 0) return AppTheme.alertDanger;
-    if (porcentaje < 0.1) return AppTheme.alertWarning;
-    if (porcentaje < 0.3) return AppTheme.alertCaution;
-    return AppTheme.alertOk;
+    if (porcentaje < 0) return AppColors.alertDanger;
+    if (porcentaje < 0.1) return AppColors.alertWarning;
+    if (porcentaje < 0.3) return AppColors.alertCaution;
+    return AppColors.alertOk;
   }
 }

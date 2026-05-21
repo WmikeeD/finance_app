@@ -19,11 +19,11 @@ class AppInfoBanner extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
 
-  Color get _color => switch (type) {
-        AppBannerType.info    => AppTheme.savingsColor,
-        AppBannerType.warning => AppTheme.alertWarning,
-        AppBannerType.danger  => AppTheme.alertDanger,
-        AppBannerType.success => AppTheme.alertCelebrate,
+  Color _color(BuildContext context) => switch (type) {
+        AppBannerType.info    => AppColors.savings,
+        AppBannerType.warning => AppColors.alertWarning,
+        AppBannerType.danger  => AppColors.alertDanger,
+        AppBannerType.success => AppColors.alertCelebrate,
       };
 
   IconData get _icon => switch (type) {
@@ -36,7 +36,7 @@ class AppInfoBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = _color;
+    final color = _color(context);
 
     return GestureDetector(
       onTap: onTap,

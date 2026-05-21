@@ -1,17 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter pub *)",
-      "Bash(flutter analyze *)",
-      "Bash(dart run *)",
-      "Bash(flutter build *)",
-      "Bash(Get-ChildItem \"C:\\\\Users\\\\Mayckol\\\\.claude\" -Recurse -Depth 2)",
-      "Bash(Select-Object FullName, Name)",
-      "PowerShell(Get-Command *)"
+      "Bash(Get-Content \"C:\\\\Users\\\\Mayckol\\\\Documents\\\\finance_app\\\\lib\\\\core\\\\theme\\\\app_theme_m3.dart\")",
+      "Bash(Select-String \"lgBR|mdBR|xlBR\")"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "mcp-search"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

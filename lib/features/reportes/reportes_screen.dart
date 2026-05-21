@@ -118,7 +118,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 'Ingresos',
                 r.ingresos,
                 Icons.arrow_downward,
-                AppTheme.incomeColor,
+                AppTheme.incomeColor(context),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -127,7 +127,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 'Egresos',
                 r.egresos,
                 Icons.arrow_upward,
-                AppTheme.expenseColor,
+                AppTheme.expenseColor(context),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -136,7 +136,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 'Balance',
                 r.ingresos - r.egresos,
                 Icons.account_balance,
-                r.ingresos >= r.egresos ? AppTheme.incomeColor : AppTheme.expenseColor,
+                r.ingresos >= r.egresos ? AppTheme.incomeColor(context) : AppTheme.expenseColor(context),
               ),
             ),
           ],
@@ -165,7 +165,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
               child: Text(
                 Formatters.monedaConSimbolo(monto.abs()),
                 style: theme.textTheme.titleMedium?.copyWith(
-                  color: monto < 0 ? AppTheme.expenseColor : color,
+                  color: monto < 0 ? AppTheme.expenseColor(context) : color,
                 ),
               ),
             ),
@@ -381,9 +381,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const Spacer(),
-                    _buildLeyenda('Ingresos', AppTheme.incomeColor),
+                    _buildLeyenda('Ingresos', AppTheme.incomeColor(context)),
                     const SizedBox(width: AppSpacing.md),
-                    _buildLeyenda('Egresos', AppTheme.expenseColor),
+                    _buildLeyenda('Egresos', AppTheme.expenseColor(context)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -401,14 +401,14 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           barRods: [
                             BarChartRodData(
                               toY: m.ingresos,
-                              color: AppTheme.incomeColor,
+                              color: AppTheme.incomeColor(context),
                               width: 10,
                               borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(AppRadius.sm)),
                             ),
                             BarChartRodData(
                               toY: m.egresos,
-                              color: AppTheme.expenseColor,
+                              color: AppTheme.expenseColor(context),
                               width: 10,
                               borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(AppRadius.sm)),
@@ -507,7 +507,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al exportar: $e'),
-            backgroundColor: AppTheme.alertDanger,
+            backgroundColor: AppColors.alertDanger,
           ),
         );
       }

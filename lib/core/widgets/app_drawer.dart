@@ -5,6 +5,7 @@ import '../../features/personas/personas_screen.dart';
 import '../../features/gastos_fijos/gastos_fijos_screen.dart';
 import '../database/database.dart';
 import '../navigation/app_tab_controller.dart';
+import '../theme/app_theme.dart';
 
 class AppDrawer extends StatelessWidget {
   final AppDatabase database;
@@ -16,7 +17,6 @@ class AppDrawer extends StatelessWidget {
     required this.currentRoute,
   });
 
-  // Rutas que corresponden a un tab del AppShell
   static const Map<String, int> _tabRoutes = {
     '/home': 0,
     '/transacciones': 1,
@@ -32,40 +32,55 @@ class AppDrawer extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           _buildDrawerHeader(context),
-          const SizedBox(height: 8),
-
-          // ── Navegación principal (tabs) ──────────────────────
-          _buildTabItem(context, icon: Icons.dashboard, title: 'Dashboard', route: '/home'),
-          _buildTabItem(context, icon: Icons.swap_horiz, title: 'Transacciones', route: '/transacciones'),
-          _buildTabItem(context, icon: Icons.bar_chart, title: 'Reportes', route: '/reportes'),
-          _buildTabItem(context, icon: Icons.trending_up, title: 'Proyección', route: '/proyeccion'),
-
+          const SizedBox(height: AppSpacing.sm),
+          _buildTabItem(context,
+              icon: Icons.dashboard, title: 'Dashboard', route: '/home'),
+          _buildTabItem(context,
+              icon: Icons.swap_horiz,
+              title: 'Transacciones',
+              route: '/transacciones'),
+          _buildTabItem(context,
+              icon: Icons.bar_chart, title: 'Reportes', route: '/reportes'),
+          _buildTabItem(context,
+              icon: Icons.trending_up,
+              title: 'Proyección',
+              route: '/proyeccion'),
           const Divider(height: 16),
-
-          // ── Gestión de datos (pantallas adicionales) ─────────
-          _buildSectionTitle('Gestión de Datos'),
-          _buildDataItem(context, icon: Icons.account_balance_wallet, title: 'Cuentas', route: '/cuentas',
+          _buildSectionTitle(context, 'Gestión de Datos'),
+          _buildDataItem(context,
+              icon: Icons.account_balance_wallet,
+              title: 'Cuentas',
+              route: '/cuentas',
               screen: CuentasScreen(database: database)),
-          _buildDataItem(context, icon: Icons.category, title: 'Categorías', route: '/categorias',
+          _buildDataItem(context,
+              icon: Icons.category,
+              title: 'Categorías',
+              route: '/categorias',
               screen: CategoriasScreen(database: database)),
-          _buildDataItem(context, icon: Icons.people, title: 'Personas', route: '/personas',
+          _buildDataItem(context,
+              icon: Icons.people,
+              title: 'Personas',
+              route: '/personas',
               screen: PersonasScreen(database: database)),
-          _buildDataItem(context, icon: Icons.repeat, title: 'Gastos Fijos', route: '/gastos_fijos',
+          _buildDataItem(context,
+              icon: Icons.repeat,
+              title: 'Gastos Fijos',
+              route: '/gastos_fijos',
               screen: GastosFijosScreen(database: database)),
-
           const Divider(height: 16),
-
-          // ── Configuración ────────────────────────────────────
-          _buildSectionTitle('Configuración'),
-          _buildTabItem(context, icon: Icons.settings, title: 'Ajustes', route: '/settings'),
-          _buildDataItem(context, icon: Icons.help_outline, title: 'Ayuda', route: '/help',
+          _buildSectionTitle(context, 'Configuración'),
+          _buildTabItem(context,
+              icon: Icons.settings, title: 'Ajustes', route: '/settings'),
+          _buildDataItem(context,
+              icon: Icons.help_outline,
+              title: 'Ayuda',
+              route: '/help',
               screen: const Placeholder()),
         ],
       ),
     );
   }
 
-  /// Navega a un tab del AppShell (sin crear nueva ruta en el stack).
   Widget _buildTabItem(
     BuildContext context, {
     required IconData icon,
@@ -79,18 +94,16 @@ class AppDrawer extends StatelessWidget {
       title: title,
       isSelected: isSelected,
       onTap: () {
-        Navigator.pop(context); // cierra el drawer
+        Navigator.pop(context);
         final tabIdx = _tabRoutes[route];
         if (tabIdx != null) {
           AppTabController.goToTab(tabIdx);
-          // Vuelve al root del navigator (el AppShell) si hay rutas encima
           Navigator.popUntil(context, (r) => r.isFirst);
         }
       },
     );
   }
 
-  /// Navega a una pantalla de datos via Navigator.push (preserva el stack).
   Widget _buildDataItem(
     BuildContext context, {
     required IconData icon,
@@ -105,7 +118,7 @@ class AppDrawer extends StatelessWidget {
       title: title,
       isSelected: isSelected,
       onTap: () {
-        Navigator.pop(context); // cierra el drawer
+        Navigator.pop(context);
         if (!isSelected) {
           Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
         }
@@ -120,41 +133,41 @@ class AppDrawer extends StatelessWidget {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final color = isSelected
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurfaceVariant;
+    final scheme = Theme.of(context).colorScheme;
+    final color = isSelected ? scheme.primary : scheme.onSurfaceVariant;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding:
+          const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
       child: ListTile(
         leading: Icon(icon, color: color),
         title: Text(
           title,
           style: TextStyle(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.onSurface,
+            color: isSelected ? scheme.primary : scheme.onSurface,
           ),
         ),
         selected: isSelected,
-        selectedTileColor:
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        selectedTileColor: scheme.primary.withValues(alpha: 0.10),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm)),
         onTap: onTap,
       ),
     );
   }
 
   Widget _buildDrawerHeader(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return DrawerHeader(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.60),
+            scheme.primary,
+            scheme.primary.withValues(alpha: 0.60),
           ],
         ),
       ),
@@ -163,45 +176,47 @@ class AppDrawer extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Icon(
               Icons.account_balance_wallet,
               size: 40,
-              color: Theme.of(context).colorScheme.primary,
+              color: scheme.primary,
             ),
           ),
-          const SizedBox(height: 12),
-          const Text(
+          const SizedBox(height: AppSpacing.md),
+          Text(
             'Finance App',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
+            style: textTheme.headlineSmall?.copyWith(
+              color: scheme.onPrimary,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
+          const SizedBox(height: AppSpacing.xs),
+          Text(
             'Control de Finanzas Personales',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+            style: textTheme.bodyMedium?.copyWith(
+              color: scheme.onPrimary.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.base, AppSpacing.sm, AppSpacing.base, AppSpacing.xs),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 12,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.outline,
           fontWeight: FontWeight.w600,
-          color: Colors.grey,
           letterSpacing: 0.5,
         ),
       ),

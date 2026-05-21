@@ -97,7 +97,7 @@ class NotificacionesPanel extends StatelessWidget {
           theme,
           title: 'Cuotas próximas (30 días)',
           icon: Icons.credit_card,
-          color: AppTheme.alertWarning,
+          color: AppColors.alertWarning,
           items: cuotas.map((c) => _buildCuotaTile(context, theme, c)).toList(),
         );
       },
@@ -107,13 +107,13 @@ class NotificacionesPanel extends StatelessWidget {
   Widget _buildCuotaTile(BuildContext context, ThemeData theme, Cuota cuota) {
     final diasRestantes = cuota.fechaVencimiento.difference(DateTime.now()).inDays;
     final chipColor = diasRestantes <= 3
-        ? AppTheme.alertDanger
+        ? AppColors.alertDanger
         : diasRestantes <= 7
-            ? AppTheme.alertWarning
-            : AppTheme.alertCaution;
+            ? AppColors.alertWarning
+            : AppColors.alertCaution;
 
     return ListTile(
-      leading: AppSemanticIcon(icon: Icons.payment, color: AppTheme.alertWarning, size: AppIconSize.sm),
+      leading: AppSemanticIcon(icon: Icons.payment, color: AppColors.alertWarning, size: AppIconSize.sm),
       title: Text(
         'Cuota #${cuota.numeroCuota}',
         style: theme.textTheme.labelLarge,
@@ -167,7 +167,7 @@ class NotificacionesPanel extends StatelessWidget {
           theme,
           title: 'Gastos fijos próximos (7 días)',
           icon: Icons.repeat,
-          color: AppTheme.expenseColor,
+          color: AppTheme.expenseColor(context),
           items: proximos.map((g) => _buildGastoFijoTile(context, theme, g, hoy)).toList(),
         );
       },
@@ -178,7 +178,7 @@ class NotificacionesPanel extends StatelessWidget {
     final diasRestantes = (gasto.diaVencimiento ?? 0) - hoy;
 
     return ListTile(
-      leading: AppSemanticIcon(icon: Icons.repeat, color: AppTheme.expenseColor, size: AppIconSize.sm),
+      leading: AppSemanticIcon(icon: Icons.repeat, color: AppTheme.expenseColor(context), size: AppIconSize.sm),
       title: Text(gasto.nombre, style: theme.textTheme.labelLarge),
       subtitle: Text(
         'Día ${gasto.diaVencimiento} de cada mes',
@@ -192,19 +192,19 @@ class NotificacionesPanel extends StatelessWidget {
             Formatters.monedaConSimbolo(gasto.monto),
             style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.expenseColor,
+              color: AppTheme.expenseColor(context),
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: AppTheme.expenseColor.withValues(alpha: 0.12),
+              color: AppTheme.expenseColor(context).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               diasRestantes == 0 ? 'Hoy' : 'en $diasRestantes d.',
               style: theme.textTheme.labelSmall?.copyWith(
-                color: AppTheme.expenseColor,
+                color: AppTheme.expenseColor(context),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -229,7 +229,7 @@ class NotificacionesPanel extends StatelessWidget {
           theme,
           title: 'Deudas pendientes',
           icon: Icons.people,
-          color: AppTheme.alertDanger,
+          color: AppColors.alertDanger,
           items: deudas.map((d) => _buildDeudaTile(context, theme, d)).toList(),
         );
       },
@@ -237,7 +237,7 @@ class NotificacionesPanel extends StatelessWidget {
   }
 
   Widget _buildDeudaTile(BuildContext context, ThemeData theme, Deuda deuda) {
-    final color = deuda.estado == 'vencida' ? AppTheme.alertDanger : AppTheme.alertWarning;
+    final color = deuda.estado == 'vencida' ? AppColors.alertDanger : AppColors.alertWarning;
 
     return FutureBuilder<Persona?>(
       future: (database.select(database.personas)

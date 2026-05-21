@@ -23,7 +23,9 @@ class AppAmountText extends StatelessWidget {
 
     Color? color;
     if (semanticColor) {
-      color = amount >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor;
+      color = amount >= 0
+          ? AppTheme.incomeColor(context)
+          : AppTheme.expenseColor(context);
     }
 
     String text = Formatters.monedaConSimbolo(amount.abs());

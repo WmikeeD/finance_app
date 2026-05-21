@@ -213,7 +213,7 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
                   style: TextStyle(
                     fontSize: 11,
                     color: gasto.activo
-                        ? AppTheme.alertOk
+                        ? AppColors.alertOk
                         : Theme.of(context).colorScheme.outline,
                   ),
                 ),

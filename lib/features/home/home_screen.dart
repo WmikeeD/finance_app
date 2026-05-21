@@ -158,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     balanceDisponible,
                     'Dinero real',
                     Icons.account_balance_wallet,
-                    AppTheme.incomeColor,
+                    AppTheme.incomeColor(context),
                     () => _navigateToCuentas(),
                   ),
                 ),
@@ -169,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     creditoDisponible,
                     'Disponible',
                     Icons.credit_card,
-                    AppTheme.savingsColor,
+                    AppTheme.savingsColor(context),
                     () => _navigateToCuentas(),
                   ),
                 ),
@@ -180,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     flujoDelMes,
                     'Cuotas + Fijos',
                     Icons.trending_down,
-                    flujoDelMes >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor,
+                    flujoDelMes >= 0 ? AppTheme.incomeColor(context) : AppTheme.expenseColor(context),
                     () => _navigateToTransacciones(),
                   ),
                 ),
@@ -221,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 Formatters.monedaConSimbolo(amount),
                 style: theme.textTheme.displaySmall?.copyWith(
-                  color: amount < 0 ? AppTheme.expenseColor : null,
+                  color: amount < 0 ? AppTheme.expenseColor(context) : null,
                   fontSize: 16,
                 ),
               ),
@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       AppSemanticIcon(
                         icon: Icons.savings,
-                        color: AppTheme.alertCaution,
+                        color: AppColors.alertCaution,
                         size: AppIconSize.sm,
                       ),
                       const SizedBox(width: AppSpacing.md),
@@ -300,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       minHeight: 10,
                       backgroundColor: theme.colorScheme.surfaceContainerHighest,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        progreso >= 1.0 ? AppTheme.alertCelebrate : AppTheme.alertCaution,
+                        progreso >= 1.0 ? AppColors.alertCelebrate : AppColors.alertCaution,
                       ),
                     ),
                   ),
@@ -337,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   AppSemanticIcon(
                     icon: Icons.repeat,
-                    color: AppTheme.expenseColor,
+                    color: AppTheme.expenseColor(context),
                     size: AppIconSize.sm,
                   ),
                   const SizedBox(width: AppSpacing.md),
@@ -361,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     Formatters.monedaConSimbolo(total),
                     style: theme.textTheme.titleMedium?.copyWith(
-                      color: AppTheme.expenseColor,
+                      color: AppTheme.expenseColor(context),
                     ),
                   ),
                 ],
@@ -462,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTransactionTile(Transaccion transaccion) {
     final isIngreso = transaccion.tipo == 'ingreso';
-    final color = isIngreso ? AppTheme.incomeColor : AppTheme.expenseColor;
+    final color = isIngreso ? AppTheme.incomeColor(context) : AppTheme.expenseColor(context);
     final theme = Theme.of(context);
 
     return ListTile(
@@ -508,7 +508,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildActionCard(
               'Cuentas',
               Icons.account_balance_wallet,
-              AppTheme.savingsColor,
+              AppTheme.savingsColor(context),
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => CuentasScreen(database: widget.database)),
@@ -517,19 +517,19 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildActionCard(
               'Reportes',
               Icons.bar_chart,
-              AppTheme.creditColor,
+              AppTheme.creditColor(context),
               () => AppTabController.goToReportes(),
             ),
             _buildActionCard(
               'Proyección',
               Icons.trending_up,
-              AppTheme.alertOk,
+              AppColors.alertOk,
               () => AppTabController.goToProyeccion(),
             ),
             _buildActionCard(
               'Personas',
               Icons.people,
-              AppTheme.alertCaution,
+              AppColors.alertCaution,
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => PersonasScreen(database: widget.database)),
@@ -538,7 +538,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildActionCard(
               'Categorías',
               Icons.category,
-              AppTheme.incomeColor,
+              AppTheme.incomeColor(context),
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => CategoriasScreen(database: widget.database)),
@@ -547,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildActionCard(
               'Gastos Fijos',
               Icons.repeat,
-              AppTheme.expenseColor,
+              AppTheme.expenseColor(context),
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => GastosFijosScreen(database: widget.database)),

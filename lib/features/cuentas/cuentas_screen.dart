@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../core/database/database.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 
 class CuentasScreen extends StatefulWidget {
   final AppDatabase database;
-  
+
   const CuentasScreen({super.key, required this.database});
 
   @override
@@ -48,7 +49,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.base),
             itemCount: cuentas.length,
             itemBuilder: (context, index) {
               final cuenta = cuentas[index];
@@ -66,6 +67,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
   }
 
   Widget _buildCuentaCard(Cuenta cuenta) {
+    final theme = Theme.of(context);
     IconData iconData;
     switch (cuenta.icono) {
       case 'credit_card':
@@ -81,16 +83,17 @@ class _CuentasScreenState extends State<CuentasScreen> {
         iconData = Icons.account_balance_wallet;
     }
 
-    Color cardColor = Color(int.parse(cuenta.color.replaceFirst('#', '0xFF')));
+    final Color cardColor =
+        Color(int.parse(cuenta.color.replaceFirst('#', '0xFF')));
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: cardColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Icon(iconData, color: cardColor),
         ),
@@ -100,10 +103,8 @@ class _CuentasScreenState extends State<CuentasScreen> {
         ),
         subtitle: Text(
           cuenta.tipo.toUpperCase(),
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.outline),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -111,19 +112,17 @@ class _CuentasScreenState extends State<CuentasScreen> {
           children: [
             Text(
               '\$${cuenta.saldo.toStringAsFixed(0)}',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: cuenta.saldo >= 0 ? Colors.green : Colors.red,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: cuenta.saldo >= 0
+                    ? AppTheme.incomeColor(context)
+                    : AppTheme.expenseColor(context),
               ),
             ),
             if (cuenta.tipo == 'credito' && cuenta.limiteCredito != null)
               Text(
                 'Límite: \$${cuenta.limiteCredito!.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[500],
-                ),
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: theme.colorScheme.outline),
               ),
           ],
         ),
@@ -139,9 +138,9 @@ class _CuentasScreenState extends State<CuentasScreen> {
     final diaCierreController = TextEditingController();
     final diaPagoController = TextEditingController();
     final metaController = TextEditingController();
-    
+
     String tipoCuenta = 'debito';
-    
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -151,7 +150,6 @@ class _CuentasScreenState extends State<CuentasScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Nombre de la cuenta
                 TextField(
                   controller: nombreController,
                   decoration: const InputDecoration(
@@ -160,9 +158,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
                     prefixIcon: Icon(Icons.edit),
                   ),
                 ),
-                const SizedBox(height: 16),
-                
-                // Tipo de cuenta
+                const SizedBox(height: AppSpacing.base),
                 DropdownButtonFormField<String>(
                   key: ValueKey(tipoCuenta),
                   initialValue: tipoCuenta,
@@ -171,10 +167,15 @@ class _CuentasScreenState extends State<CuentasScreen> {
                     prefixIcon: Icon(Icons.category),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
-                    DropdownMenuItem(value: 'debito', child: Text('Débito / Cuenta Bancaria')),
-                    DropdownMenuItem(value: 'credito', child: Text('Tarjeta de Crédito')),
-                    DropdownMenuItem(value: 'ahorro', child: Text('Cuenta de Ahorro')),
+                    DropdownMenuItem(
+                        value: 'efectivo', child: Text('Efectivo')),
+                    DropdownMenuItem(
+                        value: 'debito',
+                        child: Text('Débito / Cuenta Bancaria')),
+                    DropdownMenuItem(
+                        value: 'credito', child: Text('Tarjeta de Crédito')),
+                    DropdownMenuItem(
+                        value: 'ahorro', child: Text('Cuenta de Ahorro')),
                   ],
                   onChanged: (value) {
                     setDialogState(() {
@@ -182,9 +183,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
                     });
                   },
                 ),
-                const SizedBox(height: 16),
-                
-                // Saldo inicial
+                const SizedBox(height: AppSpacing.base),
                 TextField(
                   controller: saldoController,
                   decoration: const InputDecoration(
@@ -194,26 +193,22 @@ class _CuentasScreenState extends State<CuentasScreen> {
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                    FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d+\.?\d{0,2}')),
                   ],
                 ),
-                
-                // Campos específicos para CRÉDITO
                 if (tipoCuenta == 'credito') ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.base),
                   const Divider(),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Configuración de Tarjeta de Crédito',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
-                  const SizedBox(height: 16),
-                  
-                  // Límite de crédito
+                  const SizedBox(height: AppSpacing.base),
                   TextField(
                     controller: limiteController,
                     decoration: const InputDecoration(
@@ -223,13 +218,9 @@ class _CuentasScreenState extends State<CuentasScreen> {
                       helperText: 'Máximo que puedes gastar',
                     ),
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   ),
-                  const SizedBox(height: 16),
-                  
-                  // Día de cierre
+                  const SizedBox(height: AppSpacing.base),
                   TextField(
                     controller: diaCierreController,
                     decoration: const InputDecoration(
@@ -244,9 +235,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
                       LengthLimitingTextInputFormatter(2),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  
-                  // Día de pago
+                  const SizedBox(height: AppSpacing.base),
                   TextField(
                     controller: diaPagoController,
                     decoration: const InputDecoration(
@@ -262,23 +251,18 @@ class _CuentasScreenState extends State<CuentasScreen> {
                     ],
                   ),
                 ],
-                
-                // Campos específicos para AHORRO
                 if (tipoCuenta == 'ahorro') ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.base),
                   const Divider(),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Configuración de Ahorro',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
-                  const SizedBox(height: 16),
-                  
-                  // Meta de ahorro
+                  const SizedBox(height: AppSpacing.base),
                   TextField(
                     controller: metaController,
                     decoration: const InputDecoration(
@@ -289,7 +273,8 @@ class _CuentasScreenState extends State<CuentasScreen> {
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+\.?\d{0,2}')),
                     ],
                   ),
                 ],
@@ -303,80 +288,80 @@ class _CuentasScreenState extends State<CuentasScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                // Validaciones
                 if (nombreController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ingresa un nombre para la cuenta')),
+                    const SnackBar(
+                        content: Text('Ingresa un nombre para la cuenta')),
                   );
                   return;
                 }
 
                 final saldo = double.tryParse(saldoController.text) ?? 0.0;
-                
-                // Para crédito, el saldo es negativo (lo que debes)
-                final saldoFinal = tipoCuenta == 'credito' ? -saldo.abs() : saldo;
-                
-                // Validar campos de crédito
+                final saldoFinal =
+                    tipoCuenta == 'credito' ? -saldo.abs() : saldo;
+
                 if (tipoCuenta == 'credito') {
                   final limite = double.tryParse(limiteController.text);
                   final diaCierre = int.tryParse(diaCierreController.text);
                   final diaPago = int.tryParse(diaPagoController.text);
-                  
+
                   if (limite == null || limite <= 0) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ingresa un límite de crédito válido')),
+                      const SnackBar(
+                          content: Text('Ingresa un límite de crédito válido')),
                     );
                     return;
                   }
-                  
+
                   if (diaCierre == null || diaCierre < 1 || diaCierre > 31) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('El día de cierre debe estar entre 1 y 31')),
+                      const SnackBar(
+                          content:
+                              Text('El día de cierre debe estar entre 1 y 31')),
                     );
                     return;
                   }
-                  
+
                   if (diaPago == null || diaPago < 1 || diaPago > 31) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('El día de pago debe estar entre 1 y 31')),
+                      const SnackBar(
+                          content:
+                              Text('El día de pago debe estar entre 1 y 31')),
                     );
                     return;
                   }
-                  
-                  // Insertar cuenta de crédito con todos los campos
+
                   await widget.database.into(widget.database.cuentas).insert(
-                    CuentasCompanion.insert(
-                      nombre: nombreController.text,
-                      tipo: tipoCuenta,
-                      saldo: drift.Value(saldoFinal),
-                      limiteCredito: drift.Value(limite),
-                      diaCierre: drift.Value(diaCierre),
-                      diaPago: drift.Value(diaPago),
-                    ),
-                  );
+                        CuentasCompanion.insert(
+                          nombre: nombreController.text,
+                          tipo: tipoCuenta,
+                          saldo: drift.Value(saldoFinal),
+                          limiteCredito: drift.Value(limite),
+                          diaCierre: drift.Value(diaCierre),
+                          diaPago: drift.Value(diaPago),
+                        ),
+                      );
                 } else if (tipoCuenta == 'ahorro') {
-                  // Insertar cuenta de ahorro con meta opcional
                   final meta = double.tryParse(metaController.text);
-                  
+
                   await widget.database.into(widget.database.cuentas).insert(
-                    CuentasCompanion.insert(
-                      nombre: nombreController.text,
-                      tipo: tipoCuenta,
-                      saldo: drift.Value(saldoFinal),
-                      meta: drift.Value(meta),
-                    ),
-                  );
+                        CuentasCompanion.insert(
+                          nombre: nombreController.text,
+                          tipo: tipoCuenta,
+                          saldo: drift.Value(saldoFinal),
+                          meta: drift.Value(meta),
+                        ),
+                      );
                 } else {
-                  // Insertar cuenta normal (efectivo, débito)
                   await widget.database.into(widget.database.cuentas).insert(
-                    CuentasCompanion.insert(
-                      nombre: nombreController.text,
-                      tipo: tipoCuenta,
-                      saldo: drift.Value(saldoFinal),
-                    ),
-                  );
+                        CuentasCompanion.insert(
+                          nombre: nombreController.text,
+                          tipo: tipoCuenta,
+                          saldo: drift.Value(saldoFinal),
+                        ),
+                      );
                 }
-                
+
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -407,7 +392,8 @@ class _CuentasScreenState extends State<CuentasScreen> {
               if (cuenta.tipo == 'credito') ...[
                 const Divider(height: 24),
                 if (cuenta.limiteCredito != null)
-                  _buildInfoRow('Límite de crédito', '\$${cuenta.limiteCredito!.toStringAsFixed(0)}'),
+                  _buildInfoRow('Límite de crédito',
+                      '\$${cuenta.limiteCredito!.toStringAsFixed(0)}'),
                 if (cuenta.limiteCredito != null)
                   _buildInfoRow(
                     'Disponible',
@@ -447,7 +433,8 @@ class _CuentasScreenState extends State<CuentasScreen> {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Confirmar eliminación'),
-                  content: Text('¿Estás seguro de eliminar "${cuenta.nombre}"?'),
+                  content:
+                      Text('¿Estás seguro de eliminar "${cuenta.nombre}"?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
@@ -455,12 +442,15 @@ class _CuentasScreenState extends State<CuentasScreen> {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                      child: const Text(
+                        'Eliminar',
+                        style: TextStyle(color: AppColors.alertDanger),
+                      ),
                     ),
                   ],
                 ),
               );
-              
+
               if (confirmar == true && context.mounted) {
                 await (widget.database.delete(widget.database.cuentas)
                       ..where((c) => c.id.equals(cuenta.id)))
@@ -473,7 +463,10 @@ class _CuentasScreenState extends State<CuentasScreen> {
                 }
               }
             },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: AppColors.alertDanger),
+            ),
           ),
         ],
       ),
@@ -481,24 +474,21 @@ class _CuentasScreenState extends State<CuentasScreen> {
   }
 
   Widget _buildInfoRow(String label, String value) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.outline),
           ),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -519,12 +509,11 @@ class _CuentasScreenState extends State<CuentasScreen> {
           children: [
             Text(
               'Saldo actual: \$${cuenta.saldo.toStringAsFixed(0)}',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.base),
             TextField(
               controller: metaController,
               decoration: const InputDecoration(
@@ -549,7 +538,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
           ElevatedButton(
             onPressed: () async {
               final meta = double.tryParse(metaController.text);
-              
+
               await (widget.database.update(widget.database.cuentas)
                     ..where((c) => c.id.equals(cuenta.id)))
                   .write(
@@ -560,7 +549,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
 
               if (context.mounted) {
                 Navigator.pop(context);
-                Navigator.pop(context); // Cerrar también el diálogo de detalles
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Meta actualizada')),
                 );

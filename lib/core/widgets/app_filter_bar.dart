@@ -55,7 +55,7 @@ class AppFilterBar extends StatelessWidget {
                 hintText: searchHint ?? 'Buscar...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
-                  borderRadius: AppRadius.lgBR,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.base,

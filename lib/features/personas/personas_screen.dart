@@ -111,7 +111,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(Icons.account_balance_wallet, color: AppTheme.alertCaution),
+              Icon(Icons.account_balance_wallet, color: AppColors.alertCaution),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
@@ -131,11 +131,11 @@ class _PersonasScreenState extends State<PersonasScreen> {
                   final total = deudas.fold(0.0, (sum, d) => sum + d.montoPendiente);
                   
                   return Chip(
-                    backgroundColor: AppTheme.alertCaution.withValues(alpha: 0.15),
+                    backgroundColor: AppColors.alertCaution.withValues(alpha: 0.15),
                     label: Text(
                       Formatters.monedaConSimbolo(total),
                       style: TextStyle(
-                        color: AppTheme.alertCaution,
+                        color: AppColors.alertCaution,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -208,11 +208,11 @@ class _PersonasScreenState extends State<PersonasScreen> {
                       children: [
                         CircleAvatar(
                           backgroundColor: esCuotas
-                              ? AppTheme.creditColor.withValues(alpha: 0.12)
-                              : AppTheme.savingsColor.withValues(alpha: 0.12),
+                              ? AppTheme.creditColor(context).withValues(alpha: 0.12)
+                              : AppTheme.savingsColor(context).withValues(alpha: 0.12),
                           child: Icon(
                             esCuotas ? Icons.credit_card : Icons.money_off,
-                            color: esCuotas ? AppTheme.creditColor : AppTheme.savingsColor,
+                            color: esCuotas ? AppTheme.creditColor(context) : AppTheme.savingsColor(context),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -247,7 +247,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                                color: AppTheme.expenseColor,
+                                color: AppTheme.expenseColor(context),
                               ),
                             ),
                             Text(
@@ -266,7 +266,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
                       value: progreso,
                       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        progreso >= 1 ? AppTheme.alertOk : AppTheme.alertCaution,
+                        progreso >= 1 ? AppColors.alertOk : AppColors.alertCaution,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -288,7 +288,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
                           icon: const Icon(Icons.payments, size: 16),
                           label: const Text('Cobrar deuda'),
                           style: TextButton.styleFrom(
-                            foregroundColor: AppTheme.incomeColor,
+                            foregroundColor: AppTheme.incomeColor(context),
                           ),
                         ),
                       ],
@@ -317,11 +317,11 @@ class _PersonasScreenState extends State<PersonasScreen> {
         final cuota = cuotas.first;
         final diasRestantes = cuota.fechaVencimiento.difference(DateTime.now()).inDays;
         
-        Color color = AppTheme.alertOk;
+        Color color = AppColors.alertOk;
         if (diasRestantes < 0) {
-          color = AppTheme.alertDanger;
+          color = AppColors.alertDanger;
         } else if (diasRestantes < 5) {
-          color = AppTheme.alertCaution;
+          color = AppColors.alertCaution;
         }
         
         return Text(
@@ -394,7 +394,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
                 ),
                 Row(
                   children: [
-                    Icon(Icons.payments, color: AppTheme.incomeColor),
+                    Icon(Icons.payments, color: AppTheme.incomeColor(context)),
                     const SizedBox(width: 8),
                     const Text(
                       'Cobrar Deuda',
@@ -430,8 +430,8 @@ class _PersonasScreenState extends State<PersonasScreen> {
                         ctx,
                         'Pendiente',
                         Formatters.monedaConSimbolo(deuda.montoPendiente),
-                        AppTheme.alertCaution.withValues(alpha: 0.1),
-                        textColor: AppTheme.alertCaution,
+                        AppColors.alertCaution.withValues(alpha: 0.1),
+                        textColor: AppColors.alertCaution,
                       ),
                     ),
                   ],
@@ -482,7 +482,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
                     icon: const Icon(Icons.check_circle_outline),
                     label: const Text('Registrar Cobro'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.incomeColor,
+                      backgroundColor: AppTheme.incomeColor(context),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -635,14 +635,14 @@ class _PersonasScreenState extends State<PersonasScreen> {
                     margin: const EdgeInsets.only(top: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppTheme.expenseColor.withValues(alpha: 0.08),
+                      color: AppTheme.expenseColor(context).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       'Debe: ${Formatters.monedaConSimbolo(totalDeuda)}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: AppTheme.expenseColor,
+                        color: AppTheme.expenseColor(context),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -698,7 +698,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
                 children: deudas.map((deuda) => ListTile(
                   leading: Icon(
                     deuda.tipo == 'cuotas' ? Icons.credit_card : Icons.money_off,
-                    color: deuda.estado == 'pagada' ? AppTheme.alertOk : AppTheme.alertCaution,
+                    color: deuda.estado == 'pagada' ? AppColors.alertOk : AppColors.alertCaution,
                   ),
                   title: Text(Formatters.monedaConSimbolo(deuda.montoTotal)),
                   subtitle: Text('Pendiente: ${Formatters.monedaConSimbolo(deuda.montoPendiente)}'),
@@ -718,13 +718,13 @@ class _PersonasScreenState extends State<PersonasScreen> {
   Color _getColorEstado(String estado) {
     switch (estado) {
       case 'pagada':
-        return AppTheme.alertOk.withValues(alpha: 0.15);
+        return AppColors.alertOk.withValues(alpha: 0.15);
       case 'parcial':
-        return AppTheme.alertCaution.withValues(alpha: 0.15);
+        return AppColors.alertCaution.withValues(alpha: 0.15);
       case 'vencida':
-        return AppTheme.alertDanger.withValues(alpha: 0.15);
+        return AppColors.alertDanger.withValues(alpha: 0.15);
       default:
-        return AppTheme.alertWarning.withValues(alpha: 0.12);
+        return AppColors.alertWarning.withValues(alpha: 0.12);
     }
   }
 
@@ -850,7 +850,7 @@ class _PersonasScreenState extends State<PersonasScreen> {
                 );
               }
             },
-            child: Text('Eliminar', style: TextStyle(color: AppTheme.alertDanger)),
+            child: Text('Eliminar', style: TextStyle(color: AppColors.alertDanger)),
           ),
         ],
       ),
