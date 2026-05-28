@@ -2,6 +2,7 @@
 // Coloca este archivo en: lib/core/theme/app_theme.dart
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // ─────────────────────────────────────────────
 //  TOKENS DE COLOR SEMÁNTICOS
@@ -28,15 +29,15 @@ abstract final class AppColors {
   static const alertOk = Color(0xFF4CAF82);
   static const alertCelebrate = Color(0xFF00C896);
 
-  // ──── Dark Scheme ────
-  static const darkSurface = Color(0xFF111816);
-  static const darkSurfaceContainer = Color(0xFF1A2420);
-  static const darkSurfaceContainerHigh = Color(0xFF222E2A);
-  static const darkSurfaceContainerHighest = Color(0xFF2C3A35);
-  static const darkOnSurface = Color(0xFFE0EDE9);
-  static const darkOnSurfaceVariant = Color(0xFF8BADA4);
-  static const darkOutline = Color(0xFF3A4E49);
-  static const darkOutlineVariant = Color(0xFF253530);
+  // ──── Dark Scheme (Fondo Negro Puro) ────
+  static const darkSurface = Color(0xFF000000); // Negro puro
+  static const darkSurfaceContainer = Color(0xFF0D0D0D); // Gris muy oscuro para cards
+  static const darkSurfaceContainerHigh = Color(0xFF1A1A1A); // Gris oscuro para elevación
+  static const darkSurfaceContainerHighest = Color(0xFF262626);
+  static const darkOnSurface = Color(0xFFFFFFFF); // Blanco puro para texto
+  static const darkOnSurfaceVariant = Color(0xFF9CA3AF); // Gris claro para texto secundario
+  static const darkOutline = Color(0xFF404040);
+  static const darkOutlineVariant = Color(0xFF1F1F1F);
 
   // ──── Light Scheme ────
   static const lightSurface = Color(0xFFF5FAF8);
@@ -108,13 +109,13 @@ abstract final class AppTheme {
       onError: Color(0xFF3A0000),
       errorContainer: Color(0xFF5A1A1A),
       onErrorContainer: Color(0xFFFFB3B3),
-      surface: AppColors.darkSurface,
-      onSurface: AppColors.darkOnSurface,
+      surface: AppColors.darkSurface, // Negro puro #000000
+      onSurface: AppColors.darkOnSurface, // Blanco #FFFFFF
       onSurfaceVariant: AppColors.darkOnSurfaceVariant,
-      surfaceContainerLowest: Color(0xFF0A1210),
-      surfaceContainerLow: AppColors.darkSurface,
-      surfaceContainer: AppColors.darkSurfaceContainer,
-      surfaceContainerHigh: AppColors.darkSurfaceContainerHigh,
+      surfaceContainerLowest: Color(0xFF000000), // Negro puro
+      surfaceContainerLow: Color(0xFF0A0A0A),
+      surfaceContainer: AppColors.darkSurfaceContainer, // #0D0D0D
+      surfaceContainerHigh: AppColors.darkSurfaceContainerHigh, // #1A1A1A
       surfaceContainerHighest: AppColors.darkSurfaceContainerHighest,
       outline: AppColors.darkOutline,
       outlineVariant: AppColors.darkOutlineVariant,
@@ -173,38 +174,38 @@ abstract final class AppTheme {
   static ThemeData _buildTheme(ColorScheme scheme) {
     final isDark = scheme.brightness == Brightness.dark;
 
-    // Escala tipográfica M3 con DM Sans
-    // Si usas google_fonts: sustituye con GoogleFonts.dmSansTextTheme()
-    const textTheme = TextTheme(
+    // Escala tipográfica M3 con Inter (Google Fonts)
+    final baseTextTheme = GoogleFonts.interTextTheme();
+    final textTheme = baseTextTheme.copyWith(
       // Display — pantallas vacías, splash
-      displayLarge: TextStyle(
+      displayLarge: GoogleFonts.inter(
           fontSize: 57, fontWeight: FontWeight.w300, letterSpacing: -0.25),
-      displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w300),
-      displaySmall: TextStyle(
+      displayMedium: GoogleFonts.inter(fontSize: 45, fontWeight: FontWeight.w300),
+      displaySmall: GoogleFonts.inter(
           fontSize: 36, fontWeight: FontWeight.w300, letterSpacing: -1),
       // Headline — balances principales
-      headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w400),
-      headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w400),
-      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+      headlineLarge: GoogleFonts.inter(fontSize: 32, fontWeight: FontWeight.w400),
+      headlineMedium: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.w400),
+      headlineSmall: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w600),
       // Title — cabeceras de sección, tarjetas
-      titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-      titleMedium: TextStyle(
+      titleLarge: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700),
+      titleMedium: GoogleFonts.inter(
           fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.1),
-      titleSmall: TextStyle(
+      titleSmall: GoogleFonts.inter(
           fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.1),
       // Body — texto descriptivo
-      bodyLarge: TextStyle(
+      bodyLarge: GoogleFonts.inter(
           fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.15),
-      bodyMedium: TextStyle(
+      bodyMedium: GoogleFonts.inter(
           fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
-      bodySmall: TextStyle(
+      bodySmall: GoogleFonts.inter(
           fontSize: 12, fontWeight: FontWeight.w400, letterSpacing: 0.4),
       // Label — metadatos, badges, chips
-      labelLarge: TextStyle(
+      labelLarge: GoogleFonts.inter(
           fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
-      labelMedium: TextStyle(
+      labelMedium: GoogleFonts.inter(
           fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.5),
-      labelSmall: TextStyle(
+      labelSmall: GoogleFonts.inter(
           fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5),
     );
 
@@ -215,6 +216,7 @@ abstract final class AppTheme {
         bodyColor: scheme.onSurface,
         displayColor: scheme.onSurface,
       ),
+      fontFamily: GoogleFonts.inter().fontFamily,
       scaffoldBackgroundColor: scheme.surface,
 
       // ── AppBar ──────────────────────────────

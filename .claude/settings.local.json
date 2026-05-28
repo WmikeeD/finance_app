@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(Get-Content \"C:\\\\Users\\\\Mayckol\\\\Documents\\\\finance_app\\\\lib\\\\core\\\\theme\\\\app_theme_m3.dart\")",
-      "Bash(Select-String \"lgBR|mdBR|xlBR\")"
+      "Bash(Select-String \"lgBR|mdBR|xlBR\")",
+      "Bash(Select-String \"\\\\.png\")",
+      "Bash(Get-ChildItem -Recurse -Filter \"Dashboard*.png\")",
+      "Bash(Select-Object -First 20 FullName)"
     ]
   },
   "enableAllProjectMcpServers": true,

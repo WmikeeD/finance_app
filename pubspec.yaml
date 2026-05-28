@@ -14,6 +14,8 @@ dependencies:
 
   # UI
   cupertino_icons: ^1.0.8
+  phosphor_flutter: ^2.1.0
+  google_fonts: ^6.2.1
   
   # Base de datos - Drift (ORM)
   drift: ^2.21.0
