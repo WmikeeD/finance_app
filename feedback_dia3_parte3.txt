@@ -1,0 +1,422 @@
+¡Perfecto! Ahora voy a crear el resumen visual de los cambios:
+
+  ---
+  ✅ FASE 3.3 COMPLETADA - PROYECCIONSCREEN RESPONSIVO
+
+  📊 RESUMEN EJECUTIVO
+
+  El ProyeccionScreen ha sido completamente refactorizado con un sistema dual de layouts (Column/Row) que transforma la experiencia de visualización financiera. La pantalla ahora aprovecha el espacio horizontal en tablets/desktop mientras mantiene la experiencia compacta en móviles.
+
+  ---
+  🎨 CAMBIOS IMPLEMENTADOS
+
+  1. SliverAppBar con Altura Adaptativa ⭐
+
+  ANTES (altura fija):
+  ❌ expandedHeight: _mostrarFiltros ? 200 : 60,  // Fijo para todos
+
+  DESPUÉS (altura responsiva):
+  ✅ final expandedHeight = _mostrarFiltros
+         ? (isMobile ? 200.0 : 240.0)  // +40px en tablets/desktop
+         : 60.0;
+
+  Alturas según dispositivo:
+
+  ┌──────────────────────────────┬────────┬────────────────┐
+  │            Estado            │ Mobile │ Tablet/Desktop │
+  ├──────────────────────────────┼────────┼────────────────┤
+  │ Expandido (filtros visibles) │ 200px  │ 240px (+20%)   │
+  ├──────────────────────────────┼────────┼────────────────┤
+  │ Colapsado                    │ 60px   │ 60px           │
+  └──────────────────────────────┴────────┴────────────────┘
+
+  Beneficio: Más espacio vertical para los controles de filtros en pantallas grandes, evitando competencia visual con el banner de liberación.
+
+  ---
+  2. Layout Dual: Column vs Row 🔄
+
+  MOBILE (< 600dp) - Vertical Stack:
+
+  ┌─────────────────────────┐
+  │   GRÁFICO DE BARRAS     │
+  │   ┌─┬─┬─┬─┬─┬─┐        │
+  │   │█│█│█│█│█│█│        │ ← 200px altura
+  │   └─┴─┴─┴─┴─┴─┘        │
+  ├─────────────────────────┤
+  │  DETALLE MENSUAL        │
+  │  • Enero 2026           │
+  │    Cuotas: $150,000     │ ← Scroll independiente
+  │  • Febrero 2026         │
+  │    Cuotas: $120,000     │
+  └─────────────────────────┘
+
+  Implementación:
+  Column(
+    children: [
+      Expanded(child: GraficoBarras(...)),
+      Divider(height: 1, thickness: 2),
+      Expanded(child: DetalleMeses(...)),
+    ],
+  )
+
+  TABLET/DESKTOP (≥ 600dp) - Horizontal Split 50/50:
+
+  ┌──────────────────────┬──────────────────────┐
+  │  GRÁFICO DE BARRAS   │  DETALLE MENSUAL     │
+  │  ┌─┬─┬─┬─┬─┬─┐      │  • Enero 2026        │
+  │  │█│█│█│█│█│█│      │    Cuotas: $150,000  │
+  │  │█│█│█│█│█│█│      │    Fijos: $50,000    │
+  │  │█│█│█│█│█│█│      │                      │
+  │  └─┴─┴─┴─┴─┴─┘      │  • Febrero 2026      │
+  │      300/400px       │    Cuotas: $120,000  │
+  │      altura          │    Fijos: $50,000    │
+  │                      │                      │
+  │       50%            │       50%            │
+  └──────────────────────┴──────────────────────┘
+             │                      │
+      Scroll horizontal      Scroll vertical
+         independiente        independiente
+
+  Implementación:
+  Row(
+    children: [
+      Expanded(child: GraficoBarras(...)),    // 50% izquierda
+      VerticalDivider(width: 1, thickness: 2),
+      Expanded(child: DetalleMeses(...)),      // 50% derecha
+    ],
+  )
+
+  ---
+  3. Gráfico de Barras con Altura Adaptativa
+
+  ANTES (altura fija 200px):
+  ❌ final alturaCuotas = ((mes.totalCuotas / maxValor) * 200).toDouble();
+  ❌ final alturaFijos = ((mes.totalGastosFijos / maxValor) * 200).toDouble();
+
+  DESPUÉS (altura responsiva):
+  ✅ final chartHeight = ResponsiveHelper.getChartHeight(context);
+  ✅ final alturaCuotas = ((mes.totalCuotas / maxValor) * chartHeight).toDouble();
+  ✅ final alturaFijos = ((mes.totalGastosFijos / maxValor) * chartHeight).toDouble();
+
+  Alturas por dispositivo:
+
+  ┌─────────────┬────────────────┬────────────────┐
+  │ Dispositivo │ Altura Gráfico │ Barras Máximas │
+  ├─────────────┼────────────────┼────────────────┤
+  │ Mobile      │ 200px          │ Compactas      │
+  ├─────────────┼────────────────┼────────────────┤
+  │ Tablet      │ 300px          │ Medianas       │
+  ├─────────────┼────────────────┼────────────────┤
+  │ Desktop     │ 400px          │ Expandidas     │
+  └─────────────┴────────────────┴────────────────┘
+
+  ---
+  4. Banner de Liberación Responsivo y Accesible 🎉
+
+  ANTES (colores hardcoded):
+  ❌ color: Colors.amber,                    // Fijo
+  ❌ color: Colors.white,                    // Sin accesibilidad
+  ❌ backgroundColor: Colors.amber[100],     // Hardcoded
+  ❌ fontSize: 14 / fontSize: 12             // Sin textTheme
+
+  DESPUÉS (M3 compliant):
+  ✅ color: AppColors.alertCelebrate,                    // Token consistente
+  ✅ color: scheme.onPrimaryContainer,                   // Contraste M3
+  ✅ color: scheme.surface,                              // Adaptive
+  ✅ textTheme.titleSmall / textTheme.bodySmall         // Tipografía M3
+
+  Altura adaptativa del banner:
+
+  ┌────────────────┬───────────────┐
+  │  Dispositivo   │ Altura Banner │
+  ├────────────────┼───────────────┤
+  │ Mobile         │ 70px          │
+  ├────────────────┼───────────────┤
+  │ Tablet/Desktop │ 80px (+14%)   │
+  └────────────────┴───────────────┘
+
+  Padding horizontal:
+
+  ┌────────────────┬─────────┐
+  │  Dispositivo   │ Padding │
+  ├────────────────┼─────────┤
+  │ Mobile         │ 16dp    │
+  ├────────────────┼─────────┤
+  │ Tablet/Desktop │ 24dp    │
+  └────────────────┴─────────┘
+
+  Mejoras de accesibilidad:
+  - ✅ Chip de "Faltan X meses" ahora usa fondo surface con borde outline
+  - ✅ Icono de confetti usa PhosphorIconsRegular.confetti (antes Icons.celebration)
+  - ✅ Contraste de texto optimizado: onPrimaryContainer sobre alertCelebrate
+  - ✅ Formato de moneda usando Formatters.monedaConSimbolo() (consistente)
+
+  ---
+  5. Migración a Phosphor Icons
+
+  ┌────────────────────────────┬───────────────────┬───────────────────────────────┐
+  │         Componente         │ Antes (Material)  │      Después (Phosphor)       │
+  ├────────────────────────────┼───────────────────┼───────────────────────────────┤
+  │ Toggle filtros (expandido) │ Icons.expand_less │ PhosphorIconsRegular.caretUp  │
+  ├────────────────────────────┼───────────────────┼───────────────────────────────┤
+  │ Toggle filtros (colapsado) │ Icons.tune        │ PhosphorIconsRegular.faders   │
+  ├────────────────────────────┼───────────────────┼───────────────────────────────┤
+  │ Empty state                │ Icons.trending_up │ PhosphorIconsRegular.trendUp  │
+  ├────────────────────────────┼───────────────────┼───────────────────────────────┤
+  │ Banner liberación          │ Icons.celebration │ PhosphorIconsRegular.confetti │
+  └────────────────────────────┴───────────────────┴───────────────────────────────┘
+
+  Total migrado: 4 íconos Material → Phosphor
+
+  ---
+  6. Empty State con Material 3
+
+  ANTES:
+  ❌ Icon(Icons.trending_up, size: 64, color: Colors.grey[400]),
+  ❌ TextStyle(fontSize: 18, color: Colors.grey[600]),
+  ❌ TextStyle(color: Colors.grey[500]),
+
+  DESPUÉS:
+  ✅ PhosphorIcon(PhosphorIconsRegular.trendUp, color: scheme.outline),
+  ✅ textTheme.titleMedium?.copyWith(color: scheme.onSurfaceVariant),
+  ✅ textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant.withValues(alpha: 0.7)),
+
+  ---
+  🔧 REFACTORIZACIÓN ESTRUCTURAL
+
+  Métodos Creados:
+
+  1. _buildResponsiveContent(bool isMobile)
+
+  Decide el layout según dispositivo (Column vs Row)
+  Widget _buildResponsiveContent(bool isMobile) {
+    if (isMobile) {
+      return Column(...);  // Layout vertical
+    }
+    return Row(...);       // Layout horizontal 50/50
+  }
+
+  Beneficio: Separación clara de la lógica de presentación por tipo de dispositivo.
+
+  ---
+  📱 EXPERIENCIA VISUAL ESPERADA
+
+  MOBILE (Pixel 5, 393x851):
+
+  - SliverAppBar expandido: 200px
+  - Banner liberación: 70px
+  - Gráfico de barras: 200px altura, scroll horizontal
+  - Detalle mensual: Debajo del gráfico, scroll vertical
+  - Layout compacto y eficiente
+
+  TABLET (Pixel Tablet, 1024x600):
+
+  - SliverAppBar expandido: 240px (+20% espacio filtros)
+  - Banner liberación: 80px (+14%)
+  - Layout horizontal 50/50:
+    - Gráfico izquierda: 300px altura, scroll horizontal
+    - Detalle derecha: Scroll vertical independiente
+  - Padding banner: 24dp (vs 16dp mobile)
+
+  DESKTOP (Windows, >840dp):
+
+  - SliverAppBar expandido: 240px
+  - Banner liberación: 80px
+  - Layout horizontal optimizado:
+    - Gráfico izquierda: 400px altura (máxima legibilidad)
+    - Detalle derecha: Lista completa con scroll
+  - Máximo aprovechamiento del espacio horizontal
+
+  ---
+  🔍 VERIFICACIÓN DE CALIDAD
+
+  flutter analyze --no-pub
+  Resultado: ✅ No issues found! (ran in 3.0s)
+
+  Métricas:
+  - ✅ Cero warnings
+  - ✅ Cero errores
+  - ✅ Cero colores hardcoded
+  - ✅ Cero alturas fijas en gráficos
+  - ✅ 4/4 íconos migrados a Phosphor
+  - ✅ Lógica matemática intacta (cálculos de proyección sin tocar)
+  - ✅ Queries DB sin modificar
+
+  ---
+  📝 CÓDIGO CLAVE
+
+  Layout Responsivo Principal:
+
+  Widget _buildResponsiveContent(bool isMobile) {
+    if (isMobile) {
+      // Vertical: Gráfico arriba, detalle abajo
+      return Column(
+        children: [
+          Expanded(child: GraficoBarras(...)),
+          Divider(),
+          Expanded(child: DetalleMeses(...)),
+        ],
+      );
+    }
+
+    // Horizontal: Gráfico 50% izquierda, detalle 50% derecha
+    return Row(
+      children: [
+        Expanded(child: GraficoBarras(...)),
+        VerticalDivider(),
+        Expanded(child: DetalleMeses(...)),
+      ],
+    );
+  }
+
+  SliverAppBar Adaptativo:
+
+  final expandedHeight = _mostrarFiltros
+      ? (isMobile ? 200.0 : 240.0)  // +40px en pantallas grandes
+      : 60.0;
+
+  SliverAppBar(
+    expandedHeight: expandedHeight,
+    actions: [
+      IconButton(
+        icon: PhosphorIcon(
+          _mostrarFiltros
+              ? PhosphorIconsRegular.caretUp
+              : PhosphorIconsRegular.faders,
+        ),
+        ...
+      ),
+    ],
+  )
+
+  Banner con Altura Responsiva:
+
+  class LiberacionBannerDelegate extends SliverPersistentHeaderDelegate {
+    final bool isMobile;
+
+    @override
+    double get maxExtent => isMobile ? 70 : 80;
+
+    @override
+    double get minExtent => isMobile ? 70 : 80;
+  }
+
+  Barras con Altura Dinámica:
+
+  final chartHeight = ResponsiveHelper.getChartHeight(context);
+  final alturaCuotas = ((mes.totalCuotas / maxValor) * chartHeight).toDouble();
+  // chartHeight = 200/300/400 según dispositivo
+
+  ---
+  🎯 CUMPLIMIENTO DE REGLAS
+
+  ┌───────────────────────────────────────────────────┬─────────────────────────────────┐
+  │                       Regla                       │             Estado              │
+  ├───────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ ✅ SliverAppBar altura adaptativa                 │ CUMPLIDO (200→240px)            │
+  ├───────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ ✅ Layout dual Column/Row                         │ CUMPLIDO (50/50 split)          │
+  ├───────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ ✅ Gráficos con ResponsiveHelper.getChartHeight() │ CUMPLIDO                        │
+  ├───────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ ✅ Banner accesible M3                            │ CUMPLIDO (contraste optimizado) │
+  ├───────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ ✅ Cero colores hardcoded                         │ CUMPLIDO                        │
+  ├───────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ ✅ Migrar a Phosphor Icons                        │ CUMPLIDO (4/4)                  │
+  ├───────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ ✅ No tocar lógica matemática/DB                  │ CUMPLIDO                        │
+  └───────────────────────────────────────────────────┴─────────────────────────────────┘
+
+  ---
+  📋 ARCHIVOS MODIFICADOS
+
+  ┌────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────┐
+  │                        Archivo                         │                        Cambios                        │
+  ├────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────┤
+  │ lib/features/proyeccion/proyeccion_screen.dart         │ Layout responsivo Column/Row, SliverAppBar adaptativo │
+  ├────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────┤
+  │ lib/features/proyeccion/widgets/liberacion_banner.dart │ Banner M3 con altura responsiva y accesibilidad       │
+  ├────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────┤
+  │ lib/features/proyeccion/widgets/grafico_barras.dart    │ Altura dinámica de barras, textTheme M3               │
+  └────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────┘
+
+  Líneas de código:
+  - proyeccion_screen.dart: ~374 → ~430 líneas (+56 líneas: nuevo método _buildResponsiveContent)
+  - liberacion_banner.dart: ~65 → ~95 líneas (+30 líneas: imports M3, accesibilidad)
+  - grafico_barras.dart: ~166 → ~175 líneas (+9 líneas: responsive height, Builder wrapper)
+
+  Total: +95 líneas netas (nuevos métodos responsivos + mejoras M3)
+
+  ---
+  🚀 ESTADO DEL PROYECTO
+
+  Completado:
+
+  - ✅ DÍA 1: Bug navegación + Migración M3 (9/9 pantallas)
+  - ✅ DÍA 2: Sistema responsividad + NavigationRail
+  - ✅ DÍA 3 - FASE 3.1: HomeScreen responsivo
+  - ✅ DÍA 3 - FASE 3.2: ReportesScreen responsivo
+  - ✅ DÍA 3 - FASE 3.3: ProyeccionScreen responsivo ⭐ NUEVO
+
+  Pendiente:
+
+  - ⏳ DÍA 3 - FASE 3.4: TransaccionesScreen (dialog vs modal, padding responsivo)
+  - ⏳ DÍA 3 - FASE 3.5: Screens finales (Cuentas, Categorías, Personas, Gastos Fijos)
+  - ⏳ Testing multi-dispositivo (Pixel 5, Pixel Tablet, Windows)
+
+  ---
+  ✨ COMPARATIVA VISUAL
+
+  ANTES:
+
+  Todas las pantallas iguales:
+
+  ┌─────────────────────┐
+  │ Filtros (200px)     │
+  ├─────────────────────┤
+  │ 🎉 Banner (70px)    │
+  ├─────────────────────┤
+  │ Gráfico             │
+  │ (200px fijo)        │
+  ├─────────────────────┤
+  │ Detalle             │
+  │ (lista)             │
+  └─────────────────────┘
+
+  Layout siempre vertical
+
+  DESPUÉS:
+
+  MOBILE:
+  ┌─────────────────────┐
+  │ Filtros (200px)     │
+  ├─────────────────────┤
+  │ 🎉 Banner (70px)    │
+  ├─────────────────────┤
+  │ Gráfico             │
+  │ (200px adaptativo)  │
+  ├─────────────────────┤
+  │ Detalle             │
+  │ (lista)             │
+  └─────────────────────┘
+
+  DESKTOP:
+  ┌───────────────────────────────┐
+  │ Filtros (240px) +20% espacio  │
+  ├───────────────────────────────┤
+  │ 🎉 Banner (80px) +accesible   │
+  ├──────────────┬────────────────┤
+  │ Gráfico      │ Detalle        │
+  │ (400px alto) │ (lista scroll) │
+  │              │                │
+  │ Barras       │ • Enero        │
+  │ adaptativas  │ • Febrero      │
+  │              │ • Marzo        │
+  │    50%       │    50%         │
+  └──────────────┴────────────────┘
+
+  Layout horizontal optimizado
+
+  ---
+  ¿Deseas que continúe con la FASE 3.4 - TransaccionesScreen (responsive padding + optimización de dialogs) o prefieres probar primero la proyección en diferentes tamaños de pantalla? 🎯

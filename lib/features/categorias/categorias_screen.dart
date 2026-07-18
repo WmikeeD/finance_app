@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' show Value;
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/database/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
@@ -51,7 +52,7 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
 
           if (todas.isEmpty) {
             return AppEmptyState(
-              icon: Icons.category_outlined,
+              icon: PhosphorIconsRegular.squaresFour,
               title: 'No hay categorías registradas',
               buttonLabel: 'Agregar Categoría',
               onAction: () => _showFormDialog(),
@@ -84,7 +85,7 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showFormDialog(),
-        icon: const Icon(Icons.add),
+        icon: PhosphorIcon(PhosphorIconsRegular.plus),
         label: const Text('Nueva Categoría'),
       ),
     );
@@ -196,12 +197,12 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
     final theme = Theme.of(context);
     return ListTile(
       contentPadding: const EdgeInsets.only(left: 64, right: AppSpacing.base),
-      leading: Icon(Icons.subdirectory_arrow_right,
+      leading: PhosphorIcon(PhosphorIconsRegular.arrowElbowDownRight,
           size: 16, color: theme.colorScheme.outline),
       title: Text(hijo.nombre, style: theme.textTheme.bodyMedium),
       subtitle: _buildTipoBadge(hijo.tipo),
       trailing: IconButton(
-        icon: const Icon(Icons.delete_outline,
+        icon: PhosphorIcon(PhosphorIconsRegular.trash,
             size: 18, color: AppColors.alertDanger),
         onPressed: () => _confirmarEliminar(hijo),
       ),
@@ -323,11 +324,11 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   TextFormField(
                     controller: nombreCtrl,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Nombre',
                       hintText: 'Ej: Supermercado, Taxi...',
-                      prefixIcon: Icon(Icons.label_outline),
-                      border: OutlineInputBorder(),
+                      prefixIcon: PhosphorIcon(PhosphorIconsRegular.tag),
+                      border: const OutlineInputBorder(),
                     ),
                     textCapitalization: TextCapitalization.sentences,
                     validator: (v) => (v == null || v.trim().isEmpty)
@@ -339,10 +340,10 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
                     DropdownButtonFormField<String>(
                       key: ValueKey(tipoSeleccionado),
                       initialValue: tipoSeleccionado,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Tipo',
-                        prefixIcon: Icon(Icons.swap_vert),
-                        border: OutlineInputBorder(),
+                        prefixIcon: PhosphorIcon(PhosphorIconsRegular.arrowsDownUp),
+                        border: const OutlineInputBorder(),
                       ),
                       items: const [
                         DropdownMenuItem(
@@ -367,10 +368,10 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
                         return DropdownButtonFormField<int?>(
                           key: ValueKey(padreSeleccionado),
                           initialValue: padreSeleccionado,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Categoría padre (opcional)',
-                            prefixIcon: Icon(Icons.account_tree_outlined),
-                            border: OutlineInputBorder(),
+                            prefixIcon: PhosphorIcon(PhosphorIconsRegular.tree),
+                            border: const OutlineInputBorder(),
                           ),
                           items: [
                             const DropdownMenuItem(
@@ -435,31 +436,31 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
   IconData _iconData(String? name) {
     switch (name) {
       case 'restaurant':
-        return Icons.restaurant;
+        return PhosphorIconsRegular.forkKnife;
       case 'directions_car':
-        return Icons.directions_car;
+        return PhosphorIconsRegular.car;
       case 'home':
-        return Icons.home;
+        return PhosphorIconsRegular.house;
       case 'medical_services':
-        return Icons.medical_services;
+        return PhosphorIconsRegular.firstAid;
       case 'sports_esports':
-        return Icons.sports_esports;
+        return PhosphorIconsRegular.gameController;
       case 'school':
-        return Icons.school;
+        return PhosphorIconsRegular.graduationCap;
       case 'receipt':
-        return Icons.receipt;
+        return PhosphorIconsRegular.receipt;
       case 'people':
-        return Icons.people;
+        return PhosphorIconsRegular.users;
       case 'attach_money':
-        return Icons.attach_money;
+        return PhosphorIconsRegular.currencyDollar;
       case 'work':
-        return Icons.work;
+        return PhosphorIconsRegular.briefcase;
       case 'trending_up':
-        return Icons.trending_up;
+        return PhosphorIconsRegular.trendUp;
       case 'account_balance_wallet':
-        return Icons.account_balance_wallet;
+        return PhosphorIconsRegular.wallet;
       default:
-        return Icons.category;
+        return PhosphorIconsRegular.squaresFour;
     }
   }
 }

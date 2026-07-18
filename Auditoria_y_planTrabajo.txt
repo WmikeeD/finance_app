@@ -1,0 +1,720 @@
+---
+  📊 AUDITORÍA COMPLETA - CAPA DE PRESENTACIÓN
+
+  1. INVENTARIO DE PANTALLAS
+
+  He identificado 9 pantallas principales en tu aplicación:
+
+  ┌─────┬──────────────────┬──────────────────────────────────────────────────┬────────────────────────────┬─────────────────────────────┐
+  │  #  │     Pantalla     │                       Ruta                       │         Estado M3          │        Responsividad        │
+  ├─────┼──────────────────┼──────────────────────────────────────────────────┼────────────────────────────┼─────────────────────────────┤
+  │ 1   │ Dashboard (Home) │ features/home/home_screen.dart                   │ ✅ COMPLETADO (2026-05-27) │ ⚠️ Necesita breakpoints     │
+  ├─────┼──────────────────┼──────────────────────────────────────────────────┼────────────────────────────┼─────────────────────────────┤
+  │ 2   │ Transacciones    │ features/transacciones/transacciones_screen.dart │ ✅ COMPLETADO (2026-05-10) │ ⚠️ Dialog muy largo         │
+  ├─────┼──────────────────┼──────────────────────────────────────────────────┼────────────────────────────┼─────────────────────────────┤
+  │ 3   │ Proyección       │ features/proyeccion/proyeccion_screen.dart       │ ✅ COMPLETADO (2026-05-17) │ 🔴 CRÍTICO - altura fija    │
+  ├─────┼──────────────────┼──────────────────────────────────────────────────┼────────────────────────────┼─────────────────────────────┤
+  │ 4   │ Reportes         │ features/reportes/reportes_screen.dart           │ ✅ COMPLETADO (2026-05-17) │ 🔴 CRÍTICO - gráficos fijos │
+  ├─────┼──────────────────┼──────────────────────────────────────────────────┼────────────────────────────┼─────────────────────────────┤
+  │ 5   │ Cuentas          │ features/cuentas/cuentas_screen.dart             │ ⚠️ 80% completo            │ ✅ Aceptable                │
+  ├─────┼──────────────────┼──────────────────────────────────────────────────┼────────────────────────────┼─────────────────────────────┤
+  │ 6   │ Categorías       │ features/categorias/categorias_screen.dart       │ ⚠️ 80% completo            │ ✅ Aceptable                │
+  ├─────┼──────────────────┼──────────────────────────────────────────────────┼────────────────────────────┼─────────────────────────────┤
+  │ 7   │ Personas         │ features/personas/personas_screen.dart           │ ✅ COMPLETADO (2026-05-17) │ ✅ Bien diseñado            │
+  ├─────┼──────────────────┼──────────────────────────────────────────────────┼────────────────────────────┼─────────────────────────────┤
+  │ 8   │ Gastos Fijos     │ features/gastos_fijos/gastos_fijos_screen.dart   │ ✅ COMPLETADO (2026-05-17) │ ✅ Aceptable                │
+  ├─────┼──────────────────┼──────────────────────────────────────────────────┼────────────────────────────┼─────────────────────────────┤
+  │ 9   │ Configuración    │ features/configuracion/configuracion_screen.dart │ ⚠️ 75% completo            │ ✅ Aceptable                │
+  └─────┴──────────────────┴──────────────────────────────────────────────────┴────────────────────────────┴─────────────────────────────┘
+
+  ---
+  2. ANÁLISIS DE RESPONSIVENESS (MOBILE & TABLET)
+
+  🔴 PROBLEMAS CRÍTICOS DETECTADOS
+
+  A. Tamaños Fijos que Romperán en Tablet
+
+  1. ProyeccionScreen (línea 227):
+  expandedHeight: _mostrarFiltros ? 200 : 60,  // ❌ HARDCODED
+  ☠️ Impacto: El header colapsado ocupará el mismo espacio en un tablet de 10" que en un teléfono de 6".
+
+  2. ReportesScreen (líneas 209, 391):
+  SizedBox(height: 200, child: PieChart(...))  // ❌ HARDCODED
+  SizedBox(height: 180, child: BarChart(...))  // ❌ HARDCODED
+  ☠️ Impacto: Gráficos minúsculos en tablets, desperdiciando espacio de pantalla.
+
+  3. HomeScreen (línea 378):
+  GridView.count(crossAxisCount: 3, ...)  // ❌ FIJO
+  ☠️ Impacto: En una tablet landscape de 12", seguirás viendo solo 3 columnas cuando podrías mostrar 5 o 6.
+
+  4. TransaccionesScreen (línea 450-930):
+  showDialog(...) // Dialog con formulario extenso sin max height
+  ☠️ Impacto: Dialog puede exceder la altura de pantalla en smartphones pequeños.
+
+  ---
+  B. Ausencia Total de Breakpoints
+
+  NO se encontró:
+  - ❌ Ningún uso de LayoutBuilder para adaptar layouts
+  - ❌ Ningún uso de MediaQuery.of(context).size.width para detectar tablets
+  - ❌ Ninguna lógica condicional de tipo if (isTablet) ... else ...
+
+  Consecuencias:
+  - La app se verá idéntica en un iPhone SE y en un iPad Pro
+  - Desperdicio del 60-70% del espacio de pantalla en tablets
+  - UX subóptima: usuarios verán tarjetas gigantes con textos diminutos
+
+  ---
+  ✅ ASPECTOS POSITIVOS
+
+  1. Uso consistente de AppSpacing → padding escalable (aunque siempre usa base = 16dp)
+  2. TextStyles via Theme → tipografía se adapta al tema del sistema
+  3. ListView/GridView builders → listas pueden crecer sin overflow
+  4. AppRadius constantes → bordes consistentes
+
+  ---
+  3. ANÁLISIS DE MIGRACIÓN A MATERIAL 3
+
+  ✅ Pantallas 100% Migradas (6/9)
+
+  Estas pantallas ya implementan correctamente:
+  - Sistema de color dinámico (Theme.of(context).colorScheme)
+  - Phosphor Icons
+  - Fuente Google Inter
+  - Componentes reutilizables (AppSemanticIcon, TransactionListItem, etc.)
+  - .withValues(alpha:) en lugar de .withOpacity()
+
+  Lista:
+  1. HomeScreen ✅
+  2. TransaccionesScreen ✅
+  3. ProyeccionScreen ✅
+  4. ReportesScreen ✅
+  5. PersonasScreen ✅
+  6. GastosFijosScreen ✅
+
+  ---
+  ⚠️ Pantallas con Deuda Técnica M3 (3/9)
+
+  CuentasScreen (80% completo)
+
+  Falta:
+  - Línea 74-84: Íconos hardcodeados (Icons.credit_card, Icons.account_balance) → debería usar Phosphor
+  - No usa AppSemanticIcon para los íconos de cuenta
+
+  CategoriasScreen (80% completo)
+
+  Falta:
+  - Línea 436-463: Usa Material Icons → migrar a Phosphor
+  - No aprovecha AppSemanticIcon
+
+  ConfiguracionScreen (75% completo)
+
+  Falta:
+  - Todos los íconos son Material Icons
+  - Sección de "Color Dinámico" (línea 204-300) ya no aplica según tus observaciones (comentaste que fue removido)
+
+  ---
+  4. PREGUNTAS DE CONTROL
+
+  Antes de proceder con la hoja de ruta, necesito aclarar:
+                                                                                                                                                                                                                                                                                                                                                                        ● User answered Claude's questions:  ⎿  · ¿Quieres mantener la navegación actual (bottom tabs + drawer lateral) o cambiarías a NavigationRail en tablets? → NavigationRail en tablets (Recomendado)
+     · ¿Qué prioridad tiene el soporte de Tablet vs completar la migración M3? → Primero M3, luego responsiveness (Recomendado)
+     · ¿Cuáles son los tamaños de pantalla objetivo para el diseño responsivo? → Mobile, Tablet, Desktop (Recomendado)
+     · ¿Desaparición de la barra inferior? ¿Es intencional o un bug? → Es un bug, la barra debe estar siempre visible
+
+● Perfecto, con estas respuestas ahora puedo generar la hoja de ruta completa. Dame un momento para leer el AppShell y verificar el estado de la navegación:
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Excelente. Ya tengo toda la información necesaria. Ahora te presento la HOJA DE RUTA COMPLETA.
+
+  ---
+  🗺️ HOJA DE RUTA - REDISEÑO RESPONSIVO M3
+
+  ESTRATEGIA GENERAL
+
+  Siguiendo tu preferencia, trabajaremos en 3 fases:
+  1. FASE 1: Completar migración M3 (pantallas pendientes)
+  2. FASE 2: Implementar sistema de responsividad (breakpoints + NavigationRail)
+  3. FASE 3: Optimización página por página
+
+  ---
+  📦 FASE 1: COMPLETAR MIGRACIÓN MATERIAL 3
+
+  Duración estimada: 3-4 horas
+  Pantallas afectadas: 3 (Cuentas, Categorías, Configuración)
+
+  1.1 - CuentasScreen (30 min)
+
+  Objetivo: Migrar íconos Material → Phosphor
+
+  Cambios:
+  - Línea 74-84: Reemplazar Icons.credit_card → PhosphorIconsRegular.creditCard
+  - Línea 74-84: Reemplazar Icons.account_balance → PhosphorIconsRegular.bank
+  - Línea 74-84: Reemplazar Icons.payments → PhosphorIconsRegular.money
+  - Línea 74-84: Reemplazar Icons.account_balance_wallet → PhosphorIconsRegular.wallet
+  - Envolver íconos en AppSemanticIcon donde corresponda
+
+  Archivos: lib/features/cuentas/cuentas_screen.dart
+
+  ---
+  1.2 - CategoriasScreen (45 min)
+
+  Objetivo: Migrar todos los íconos a Phosphor
+
+  Cambios:
+  - Línea 436-463: Mapeo completo de Material Icons → Phosphor equivalents
+  Icons.restaurant → PhosphorIconsRegular.forkKnife
+  Icons.directions_car → PhosphorIconsRegular.car
+  Icons.home → PhosphorIconsRegular.house
+  Icons.medical_services → PhosphorIconsRegular.firstAid
+  Icons.sports_esports → PhosphorIconsRegular.gameController
+  Icons.school → PhosphorIconsRegular.graduationCap
+  Icons.receipt → PhosphorIconsRegular.receipt
+  Icons.people → PhosphorIconsRegular.users
+  Icons.attach_money → PhosphorIconsRegular.currencyDollar
+  Icons.work → PhosphorIconsRegular.briefcase
+  Icons.trending_up → PhosphorIconsRegular.trendUp
+  Icons.account_balance_wallet → PhosphorIconsRegular.wallet
+  Icons.category → PhosphorIconsRegular.squaresFour
+
+  Archivos: lib/features/categorias/categorias_screen.dart
+
+  ---
+  1.3 - ConfiguracionScreen (1 hora)
+
+  Objetivo: Migrar íconos + eliminar código obsoleto de color dinámico
+
+  Cambios:
+  - Reemplazar todos los Material Icons por Phosphor equivalents (30 ocurrencias aprox.)
+  - CRÍTICO: Revisar si las líneas 204-300 (sección Color Dinámico) deben eliminarse o refactorizarse según la decisión de arquitectura de tu app
+  - Verificar coherencia con el comentario en main.dart:44 que dice "Color dinámico ya no está soportado en la versión M3"
+
+  Archivos: lib/features/configuracion/configuracion_screen.dart
+
+  ---
+  1.4 - AppShell (30 min)
+
+  Objetivo: Migrar íconos del NavigationBar
+
+  Cambios:
+  - Línea 54-78: Reemplazar:
+  Icons.home_outlined → PhosphorIconsRegular.house
+  Icons.swap_horiz_outlined → PhosphorIconsRegular.arrowsLeftRight
+  Icons.bar_chart_outlined → PhosphorIconsRegular.chartBar
+  Icons.trending_up_outlined → PhosphorIconsRegular.trendUp
+  Icons.settings_outlined → PhosphorIconsRegular.gear
+
+  Archivos: lib/core/widgets/app_shell.dart
+
+  ---
+  ✅ ENTREGABLE FASE 1
+
+  - ✅ 100% de pantallas usando Phosphor Icons
+  - ✅ Cero Material Icons en features
+  - ✅ Código obsoleto de color dinámico eliminado
+  - ✅ flutter analyze pasa sin warnings
+
+  ---
+  📱 FASE 2: SISTEMA DE RESPONSIVIDAD
+
+  Duración estimada: 4-6 horas
+  Objetivo: Crear infraestructura de breakpoints + NavigationRail
+
+  2.1 - Crear Utility de Breakpoints (45 min)
+
+  Archivo nuevo: lib/core/utils/responsive.dart
+
+  import 'package:flutter/material.dart';
+
+  class Breakpoints {
+    static const double mobile = 600;
+    static const double tablet = 840;
+  }
+
+  enum DeviceType { mobile, tablet, desktop }
+
+  class ResponsiveHelper {
+    static DeviceType getDeviceType(BuildContext context) {
+      final width = MediaQuery.of(context).size.width;
+      if (width < Breakpoints.mobile) return DeviceType.mobile;
+      if (width < Breakpoints.tablet) return DeviceType.tablet;
+      return DeviceType.desktop;
+    }
+
+    static bool isMobile(BuildContext context) =>
+        getDeviceType(context) == DeviceType.mobile;
+
+    static bool isTablet(BuildContext context) =>
+        getDeviceType(context) == DeviceType.tablet;
+
+    static bool isDesktop(BuildContext context) =>
+        getDeviceType(context) == DeviceType.desktop;
+
+    static bool isTabletOrDesktop(BuildContext context) =>
+        !isMobile(context);
+
+    /// Obtiene el crossAxisCount para GridView según el tipo de dispositivo
+    static int getGridCrossAxisCount(BuildContext context, {
+      int mobile = 2,
+      int tablet = 3,
+      int desktop = 4,
+    }) {
+      final type = getDeviceType(context);
+      switch (type) {
+        case DeviceType.mobile:
+          return mobile;
+        case DeviceType.tablet:
+          return tablet;
+        case DeviceType.desktop:
+          return desktop;
+      }
+    }
+
+    /// Obtiene padding horizontal según dispositivo
+    static double getHorizontalPadding(BuildContext context) {
+      final type = getDeviceType(context);
+      switch (type) {
+        case DeviceType.mobile:
+          return 16;
+        case DeviceType.tablet:
+          return 32;
+        case DeviceType.desktop:
+          return 48;
+      }
+    }
+
+    /// Obtiene altura para gráficos según dispositivo
+    static double getChartHeight(BuildContext context) {
+      final type = getDeviceType(context);
+      switch (type) {
+        case DeviceType.mobile:
+          return 200;
+        case DeviceType.tablet:
+          return 300;
+        case DeviceType.desktop:
+          return 400;
+      }
+    }
+  }
+
+  /// Widget helper para responsive design
+  class ResponsiveBuilder extends StatelessWidget {
+    final Widget Function(BuildContext, DeviceType) builder;
+
+    const ResponsiveBuilder({super.key, required this.builder});
+
+    @override
+    Widget build(BuildContext context) {
+      return builder(context, ResponsiveHelper.getDeviceType(context));
+    }
+  }
+
+  Exportar en barrel:
+  Añadir export 'responsive.dart'; en lib/core/utils/utils.dart
+
+  ---
+  2.2 - Refactorizar AppShell con NavigationRail (2-3 horas)
+
+  Objetivo: Mostrar BottomNavigationBar en mobile, NavigationRail en tablet/desktop
+
+  Nuevo código para lib/core/widgets/app_shell.dart:
+
+  import 'package:flutter/material.dart';
+  import 'package:phosphor_flutter/phosphor_flutter.dart';
+  import '../../core/database/database.dart';
+  import '../../core/navigation/app_tab_controller.dart';
+  import '../../core/utils/responsive.dart';
+  import '../../features/home/home_screen.dart';
+  import '../../features/transacciones/transacciones_screen.dart';
+  import '../../features/reportes/reportes_screen.dart';
+  import '../../features/proyeccion/proyeccion_screen.dart';
+  import '../../features/configuracion/configuracion_screen.dart';
+
+  class AppShell extends StatefulWidget {
+    final AppDatabase database;
+
+    const AppShell({super.key, required this.database});
+
+    @override
+    State<AppShell> createState() => _AppShellState();
+  }
+
+  class _AppShellState extends State<AppShell> {
+    late final List<Widget> _screens;
+
+    void _onTabChanged() => setState(() {});
+
+    @override
+    void initState() {
+      super.initState();
+      _screens = [
+        HomeScreen(database: widget.database),
+        TransaccionesScreen(database: widget.database),
+        ReportesScreen(database: widget.database),
+        ProyeccionScreen(database: widget.database),
+        ConfiguracionScreen(database: widget.database),
+      ];
+      AppTabController.tabIndex.addListener(_onTabChanged);
+    }
+
+    @override
+    void dispose() {
+      AppTabController.tabIndex.removeListener(_onTabChanged);
+      super.dispose();
+    }
+
+    @override
+    Widget build(BuildContext context) {
+      return ResponsiveBuilder(
+        builder: (context, deviceType) {
+          final isMobile = deviceType == DeviceType.mobile;
+
+          if (isMobile) {
+            return _buildMobileLayout();
+          } else {
+            return _buildTabletDesktopLayout();
+          }
+        },
+      );
+    }
+
+    Widget _buildMobileLayout() {
+      return Scaffold(
+        body: IndexedStack(
+          index: AppTabController.tabIndex.value,
+          children: _screens,
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: AppTabController.tabIndex.value,
+          onDestinationSelected: AppTabController.goToTab,
+          destinations: _getNavigationDestinations(),
+        ),
+      );
+    }
+
+    Widget _buildTabletDesktopLayout() {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              extended: ResponsiveHelper.isDesktop(context),
+              selectedIndex: AppTabController.tabIndex.value,
+              onDestinationSelected: AppTabController.goToTab,
+              labelType: ResponsiveHelper.isTablet(context)
+                  ? NavigationRailLabelType.selected
+                  : NavigationRailLabelType.none,
+              destinations: _getNavigationRailDestinations(),
+            ),
+            const VerticalDivider(thickness: 1, width: 1),
+            Expanded(
+              child: IndexedStack(
+                index: AppTabController.tabIndex.value,
+                children: _screens,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    List<NavigationDestination> _getNavigationDestinations() {
+      return [
+        NavigationDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.house),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.house),
+          label: 'Inicio',
+        ),
+        NavigationDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.arrowsLeftRight),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.arrowsLeftRight),
+          label: 'Transacciones',
+        ),
+        NavigationDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.chartBar),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.chartBar),
+          label: 'Reportes',
+        ),
+        NavigationDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.trendUp),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.trendUp),
+          label: 'Proyección',
+        ),
+        NavigationDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.gear),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.gear),
+          label: 'Config',
+        ),
+      ];
+    }
+
+    List<NavigationRailDestination> _getNavigationRailDestinations() {
+      return [
+        NavigationRailDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.house),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.house),
+          label: const Text('Inicio'),
+        ),
+        NavigationRailDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.arrowsLeftRight),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.arrowsLeftRight),
+          label: const Text('Transacciones'),
+        ),
+        NavigationRailDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.chartBar),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.chartBar),
+          label: const Text('Reportes'),
+        ),
+        NavigationRailDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.trendUp),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.trendUp),
+          label: const Text('Proyección'),
+        ),
+        NavigationRailDestination(
+          icon: PhosphorIcon(PhosphorIconsRegular.gear),
+          selectedIcon: PhosphorIcon(PhosphorIconsFill.gear),
+          label: const Text('Config'),
+        ),
+      ];
+    }
+  }
+
+  ---
+  ✅ ENTREGABLE FASE 2
+
+  - ✅ Helper responsive.dart creado y documentado
+  - ✅ AppShell con NavigationRail funcional en tablets
+  - ✅ Breakpoints configurados (600dp, 840dp)
+  - ✅ App funciona correctamente en mobile y tablet
+
+  ---
+  🎨 FASE 3: OPTIMIZACIÓN PÁGINA POR PÁGINA
+
+  Duración estimada: 8-12 horas
+  Orden: Dashboard → Reportes → Proyección → Transacciones → Resto
+
+  ---
+  3.1 - HomeScreen (Dashboard) ⭐ PRIORIDAD ALTA
+
+  Tiempo: 2 horas
+
+  Problemas actuales:
+  - GridView fijo a 3 columnas (línea 378)
+  - Cards de balance muy pequeñas en tablets
+  - Padding uniforme de 16dp
+
+  Solución:
+
+  // ANTES (línea 378)
+  GridView.count(
+    crossAxisCount: 3,
+    ...
+  )
+
+  // DESPUÉS
+  ResponsiveBuilder(
+    builder: (context, deviceType) {
+      final crossAxisCount = ResponsiveHelper.getGridCrossAxisCount(
+        context,
+        mobile: 3,
+        tablet: 4,
+        desktop: 6,
+      );
+
+      return GridView.count(
+        crossAxisCount: crossAxisCount,
+        ...
+      );
+    },
+  )
+
+  Optimizaciones adicionales:
+  - Padding horizontal: usar ResponsiveHelper.getHorizontalPadding(context)
+  - Cards de balance: aumentar tamaño de fuente en tablets (displaySmall vs displayMedium)
+  - Mini gráfico de proyección: altura adaptativa
+
+  ---
+  3.2 - ReportesScreen ⭐ PRIORIDAD CRÍTICA
+
+  Tiempo: 2-3 horas
+
+  Problemas actuales:
+  - PieChart con altura fija de 200px (línea 209)
+  - BarChart con altura fija de 180px (línea 391)
+  - Gráficos minúsculos en tablets
+
+  Solución:
+
+  // ANTES (línea 209)
+  SizedBox(
+    height: 200,
+    child: PieChart(...)
+  )
+
+  // DESPUÉS
+  SizedBox(
+    height: ResponsiveHelper.getChartHeight(context),
+    child: PieChart(...)
+  )
+
+  // ANTES (línea 391)
+  SizedBox(
+    height: 180,
+    child: BarChart(...)
+  )
+
+  // DESPUÉS
+  SizedBox(
+    height: ResponsiveHelper.getChartHeight(context) * 0.9,
+    child: BarChart(...)
+  )
+
+  Optimización de layout en tablets:
+  - En tablet/desktop: mostrar gráfico de torta y lista de categorías lado a lado (Row en vez de Column)
+  - Gráfico histórico: ocupar más espacio vertical
+
+  ---
+  3.3 - ProyeccionScreen ⭐ PRIORIDAD CRÍTICA
+
+  Tiempo: 2 horas
+
+  Problemas actuales:
+  - SliverAppBar con expandedHeight: 200 fijo (línea 227)
+  - Gráficos y detalles con alturas no adaptativas
+
+  Solución:
+
+  // ANTES (línea 227)
+  SliverAppBar(
+    expandedHeight: _mostrarFiltros ? 200 : 60,
+    ...
+  )
+
+  // DESPUÉS
+  SliverAppBar(
+    expandedHeight: _mostrarFiltros
+        ? (ResponsiveHelper.isMobile(context) ? 200 : 280)
+        : 60,
+    ...
+  )
+
+  Optimizaciones adicionales:
+  - En tablets: gráfico de barras y detalle de meses en Row (50/50) en lugar de Column
+  - Filtros: grid de 2 columnas en mobile, 3-4 en tablet
+
+  ---
+  3.4 - TransaccionesScreen ⭐ PRIORIDAD MEDIA
+
+  Tiempo: 2 horas
+
+  Problemas actuales:
+  - Dialog de "Nueva Transacción" muy largo (líneas 450-930)
+  - Puede exceder altura de pantalla en móviles pequeños
+  - No aprovecha espacio horizontal en tablets
+
+  Solución:
+
+  // Reemplazar showDialog por showModalBottomSheet en mobile
+  // Usar Dialog de ancho fijo (600dp) centrado en tablet
+
+  ResponsiveHelper.isMobile(context)
+      ? showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => DraggableScrollableSheet(
+            initialChildSize: 0.9,
+            builder: (context, scrollController) => _buildTransactionForm(scrollController),
+          ),
+        )
+      : showDialog(
+          context: context,
+          builder: (_) => Dialog(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: _buildTransactionForm(null),
+            ),
+          ),
+        );
+
+  ---
+  3.5 - Resto de Pantallas (Cuentas, Categorías, Personas, etc.)
+
+  Tiempo: 2-3 horas total
+
+  Optimizaciones generales:
+  - Padding horizontal adaptativo
+  - Listas: en tablets usar ListView con width: 800, centrado
+  - Formularios: max-width de 600dp en tablets
+  - FABs: en tablets, considerar botones inline en lugar de floating
+
+  ---
+  ✅ ENTREGABLE FASE 3
+
+  - ✅ 9/9 pantallas optimizadas para mobile/tablet/desktop
+  - ✅ Gráficos con tamaños adaptativos
+  - ✅ Layouts aprovechan espacio horizontal en tablets
+  - ✅ Formularios con max-width en pantallas grandes
+  - ✅ Experiencia visual consistente y profesional
+
+  ---
+  📋 RESUMEN EJECUTIVO
+
+  ┌───────────────────────────────┬───────────────────────────────────────────┬────────┬─────────────────────────────────────────────────────┐
+  │             Fase              │                 Pantallas                 │ Horas  │                     Entregable                      │
+  ├───────────────────────────────┼───────────────────────────────────────────┼────────┼─────────────────────────────────────────────────────┤
+  │ 1. Completar M3               │ 4 (Cuentas, Categorías, Config, AppShell) │ 3-4h   │ 100% Phosphor Icons, código obsoleto removido       │
+  ├───────────────────────────────┼───────────────────────────────────────────┼────────┼─────────────────────────────────────────────────────┤
+  │ 2. Infraestructura Responsiva │ AppShell + Helpers                        │ 4-6h   │ NavigationRail funcional, breakpoints implementados │
+  ├───────────────────────────────┼───────────────────────────────────────────┼────────┼─────────────────────────────────────────────────────┤
+  │ 3. Optimización por Página    │ 9 pantallas                               │ 8-12h  │ App 100% responsiva mobile/tablet/desktop           │
+  ├───────────────────────────────┼───────────────────────────────────────────┼────────┼─────────────────────────────────────────────────────┤
+  │ TOTAL                         │ 13 componentes                            │ 15-22h │ App M3 completa y responsiva                        │
+  └───────────────────────────────┴───────────────────────────────────────────┴────────┴─────────────────────────────────────────────────────┘
+
+  ---
+  ⚠️ RIESGOS Y CONSIDERACIONES
+
+  1. Lógica de Negocio: ✅ CERO impacto. Solo cambiamos presentación, no tocamos BLoC/Providers/Database.
+  2. Barra de navegación desaparecida: Según tu respuesta es un bug. El código actual del AppShell SÍ tiene el bottomNavigationBar, por lo que el bug podría estar en:
+    - ¿Alguna pantalla renderiza su propio Scaffold y oculta el bottom bar?
+    - ¿Hay código que cambia dinámicamente la visibilidad?
+    - Acción: Verificar si alguna pantalla secundaria (Cuentas, Personas, etc.) está usando Navigator.push en lugar de modal, lo que podría ocultar el bottom bar.
+  3. Testing: Después de cada fase, probar en:
+    - Emulador Android (Pixel 5 - 393x851dp)
+    - Emulador Android Tablet (Pixel Tablet - 1600x2560dp)
+    - iOS Simulator (iPhone 14 Pro - 393x852dp)
+    - iOS Simulator (iPad Pro 11" - 834x1194dp)
+  4. Rendimiento: El uso de ResponsiveBuilder y MediaQuery es eficiente. No hay impacto en performance.
+
+  ---
+  🚀 ORDEN DE EJECUCIÓN RECOMENDADO
+
+  DÍA 1 (4-5 horas):
+  ├─ FASE 1.1: CuentasScreen M3 ✅
+  ├─ FASE 1.2: CategoriasScreen M3 ✅
+  ├─ FASE 1.3: ConfiguracionScreen M3 ✅
+  └─ FASE 1.4: AppShell M3 ✅
+
+  DÍA 2 (5-6 horas):
+  ├─ FASE 2.1: Crear responsive.dart ✅
+  ├─ FASE 2.2: Refactorizar AppShell con NavigationRail ✅
+  └─ Testing básico mobile/tablet ✅
+
+  DÍA 3 (4-5 horas):
+  ├─ FASE 3.1: HomeScreen responsive ✅
+  ├─ FASE 3.2: ReportesScreen responsive ✅
+  └─ Testing visual ✅
+
+  DÍA 4 (4-5 horas):
+  ├─ FASE 3.3: ProyeccionScreen responsive ✅
+  ├─ FASE 3.4: TransaccionesScreen responsive ✅
+  └─ Testing visual ✅
+
+  DÍA 5 (2-3 horas):
+  ├─ FASE 3.5: Resto de pantallas ✅
+  ├─ Testing completo multi-dispositivo ✅
+  ├─ Pulido final (animaciones, transiciones) ✅
+  └─ Documentación de breakpoints en CLAUDE.md ✅
+
+  ---
+  ¿Te gustaría que empiece con la Fase 1 ahora mismo, o prefieres que primero verifiquemos el bug de la barra de navegación? 🚀

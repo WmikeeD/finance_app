@@ -4,12 +4,10 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/database/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/widgets/widgets.dart';
 import '../../core/navigation/app_tab_controller.dart';
 import '../cuentas/cuentas_screen.dart';
-import '../personas/personas_screen.dart';
-import '../gastos_fijos/gastos_fijos_screen.dart';
-import '../categorias/categorias_screen.dart';
 import '../notificaciones/notificaciones_panel.dart';
 import '../proyeccion/models/proyeccion_models.dart';
 import 'widgets/liberacion_deuda_banner.dart';
@@ -28,6 +26,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = ResponsiveHelper.getHorizontalPadding(context);
+
     return Scaffold(
       drawer: AppDrawer(database: widget.database, currentRoute: '/home'),
       appBar: AppBar(
@@ -68,20 +68,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddTransaccionDialog(),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        child: PhosphorIcon(PhosphorIconsRegular.plus, color: Colors.white),
-      ),
+      floatingActionButton: _buildResponsiveFAB(context),
+      floatingActionButtonLocation: context.isTabletOrDesktop
+          ? FloatingActionButtonLocation.endDocked
+          : FloatingActionButtonLocation.endFloat,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.base),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: AppSpacing.base,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildWelcomeCard(),
+            // Tarjeta dominante de Estado Financiero
+            _buildFinancialStatusCard(),
             const SizedBox(height: AppSpacing.xl),
-            _buildThreeCards(),
-            const SizedBox(height: AppSpacing.base),
 
             // Banner de Liberación de Deuda (condicional)
             StreamBuilder<MesLiberacion?>(
@@ -111,61 +112,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: AppSpacing.xl),
             _buildRecentTransactions(),
-            const SizedBox(height: AppSpacing.xl),
-            _buildQuickActions(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildWelcomeCard() {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.primary.withValues(alpha: 0.65),
-          ],
-        ),
-        borderRadius: AppRadius.xlBR,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '¡Bienvenido!',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Gestiona tus finanzas de manera inteligente',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.90),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildThreeCards() {
+  /// Tarjeta dominante de Estado Financiero con jerarquía visual
+  /// Diseño responsivo: tipografía y padding escalan según dispositivo
+  Widget _buildFinancialStatusCard() {
     return StreamBuilder<List<Cuenta>>(
       stream: widget.database.select(widget.database.cuentas).watch(),
       builder: (context, snapshot) {
         final cuentas = snapshot.data ?? [];
 
-        final balanceDisponible = cuentas
+        // Balance Total (efectivo + débito)
+        final balanceTotal = cuentas
             .where((c) => c.tipo == 'efectivo' || c.tipo == 'debito')
             .fold(0.0, (sum, c) => sum + c.saldo);
 
+        // Crédito disponible
         final creditoDisponible = cuentas
             .where((c) => c.tipo == 'credito')
             .fold(0.0, (sum, c) => sum + ((c.limiteCredito ?? 0) + c.saldo));
@@ -175,41 +141,24 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, flujoSnapshot) {
             final flujoDelMes = flujoSnapshot.data ?? 0.0;
 
-            return Row(
-              children: [
-                Expanded(
-                  child: _buildBalanceCard(
-                    'Balance',
-                    balanceDisponible,
-                    'Dinero real',
-                    PhosphorIconsRegular.wallet,
-                    AppTheme.incomeColor(context),
-                    () => _navigateToCuentas(),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: _buildBalanceCard(
-                    'Crédito',
-                    creditoDisponible,
-                    'Disponible',
-                    PhosphorIconsRegular.creditCard,
-                    AppTheme.savingsColor(context),
-                    () => _navigateToCuentas(),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: _buildBalanceCard(
-                    'Flujo Mes',
-                    flujoDelMes,
-                    'Cuotas + Fijos',
-                    PhosphorIconsRegular.trendDown,
-                    flujoDelMes >= 0 ? AppTheme.incomeColor(context) : AppTheme.expenseColor(context),
-                    () => _navigateToTransacciones(),
-                  ),
-                ),
-              ],
+            // Color dinámico según balance (sistema de zonas)
+            final colorZona = AppTheme.calcularColorDinamico(
+              balanceTotal,
+              100000, // minimo
+              5000000, // maximo
+            );
+            final nombreZona = AppTheme.nombreZonaDinamica(
+              balanceTotal,
+              100000,
+              5000000,
+            );
+
+            return _buildMainBalanceCard(
+              balanceTotal: balanceTotal,
+              creditoDisponible: creditoDisponible,
+              flujoDelMes: flujoDelMes,
+              colorZona: colorZona,
+              nombreZona: nombreZona,
             );
           },
         );
@@ -217,57 +166,228 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBalanceCard(
-    String title,
-    double amount,
-    String subtitle,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
+  Widget _buildMainBalanceCard({
+    required double balanceTotal,
+    required double creditoDisponible,
+    required double flujoDelMes,
+    required Color colorZona,
+    required String nombreZona,
+  }) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final deviceType = ResponsiveHelper.getDeviceType(context);
+
+    // Tipografía responsiva
+    final displayStyle = deviceType == DeviceType.mobile
+        ? theme.textTheme.displaySmall
+        : theme.textTheme.displayMedium;
+
+    final titleStyle = deviceType == DeviceType.mobile
+        ? theme.textTheme.titleMedium
+        : theme.textTheme.titleLarge;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(
+        deviceType == DeviceType.mobile ? AppSpacing.lg : AppSpacing.xl,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorZona,
+            colorZona.withValues(alpha: 0.7),
+          ],
+        ),
+        borderRadius: AppRadius.xlBR,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Zona de color actual
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.25),
+              borderRadius: AppRadius.lgBR,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PhosphorIcon(
+                  PhosphorIconsRegular.sparkle,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  nombreZona,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Balance Total (jerárquico, dominante)
+          Text(
+            'Balance Total',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.85),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            Formatters.monedaConSimbolo(balanceTotal),
+            style: displayStyle?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Grid de métricas secundarias (2 columnas en mobile, 3 en tablet+)
+          _buildSecondaryMetrics(
+            creditoDisponible: creditoDisponible,
+            flujoDelMes: flujoDelMes,
+            titleStyle: titleStyle,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecondaryMetrics({
+    required double creditoDisponible,
+    required double flujoDelMes,
+    required TextStyle? titleStyle,
+  }) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+
+    final metrics = [
+      _MetricData(
+        icon: PhosphorIconsRegular.creditCard,
+        label: 'Crédito Disponible',
+        value: Formatters.monedaConSimbolo(creditoDisponible),
+        onTap: () => _navigateToCuentas(),
+      ),
+      _MetricData(
+        icon: flujoDelMes >= 0
+            ? PhosphorIconsRegular.trendUp
+            : PhosphorIconsRegular.trendDown,
+        label: 'Flujo del Mes',
+        value: Formatters.monedaConSimbolo(flujoDelMes),
+        color: flujoDelMes >= 0
+            ? AppColors.alertOk
+            : AppColors.alertWarning,
+        onTap: () => _navigateToTransacciones(),
+      ),
+    ];
+
+    if (isMobile) {
+      // Mobile: 2 columnas
+      return Row(
+        children: [
+          Expanded(
+            child: _buildMetricItem(metrics[0], titleStyle),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: _buildMetricItem(metrics[1], titleStyle),
+          ),
+        ],
+      );
+    }
+
+    // Tablet/Desktop: 2 columnas más espaciadas
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMetricItem(metrics[0], titleStyle),
+        ),
+        const SizedBox(width: AppSpacing.lg),
+        Expanded(
+          child: _buildMetricItem(metrics[1], titleStyle),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricItem(_MetricData metric, TextStyle? titleStyle) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: metric.onTap,
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.base),
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHigh,
+          color: Colors.white.withValues(alpha: 0.15),
           borderRadius: AppRadius.lgBR,
           border: Border.all(
-            color: scheme.outlineVariant,
-            width: 0.5,
+            color: Colors.white.withValues(alpha: 0.2),
+            width: 1,
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            PhosphorIcon(icon, color: color, size: 28),
-            const SizedBox(height: AppSpacing.md),
+            PhosphorIcon(
+              metric.icon,
+              color: metric.color ?? Colors.white,
+              size: 20,
+            ),
+            const SizedBox(height: AppSpacing.sm),
             Text(
-              title,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+              metric.label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.75),
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              Formatters.monedaConSimbolo(amount),
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: amount < 0 ? AppTheme.expenseColor(context) : null,
+              metric.value,
+              style: titleStyle?.copyWith(
+                color: Colors.white,
                 fontWeight: FontWeight.w600,
               ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              subtitle,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: scheme.outline,
-              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// FAB responsivo: tamaño y posición adaptativos
+  Widget _buildResponsiveFAB(BuildContext context) {
+    final isTabletOrDesktop = context.isTabletOrDesktop;
+
+    if (isTabletOrDesktop) {
+      // Tablet/Desktop: FAB extendido
+      return FloatingActionButton.extended(
+        onPressed: () => _showAddTransaccionDialog(),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        icon: PhosphorIcon(PhosphorIconsRegular.plus, color: Colors.white),
+        label: const Text(
+          'Nueva Transacción',
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
+
+    // Mobile: FAB circular estándar
+    return FloatingActionButton(
+      onPressed: () => _showAddTransaccionDialog(),
+      backgroundColor: Theme.of(context).colorScheme.primary,
+      child: PhosphorIcon(PhosphorIconsRegular.plus, color: Colors.white),
     );
   }
 
@@ -368,103 +488,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppSectionHeader(title: 'Acciones Rápidas'),
-        const SizedBox(height: AppSpacing.md),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 3,
-          mainAxisSpacing: AppSpacing.md,
-          crossAxisSpacing: AppSpacing.md,
-          childAspectRatio: 1.1,
-          children: [
-            _buildActionCard(
-              'Cuentas',
-              PhosphorIconsRegular.wallet,
-              AppTheme.savingsColor(context),
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => CuentasScreen(database: widget.database)),
-              ),
-            ),
-            _buildActionCard(
-              'Reportes',
-              PhosphorIconsRegular.chartBar,
-              AppTheme.creditColor(context),
-              () => AppTabController.goToReportes(),
-            ),
-            _buildActionCard(
-              'Proyección',
-              PhosphorIconsRegular.trendUp,
-              AppColors.alertOk,
-              () => AppTabController.goToProyeccion(),
-            ),
-            _buildActionCard(
-              'Personas',
-              PhosphorIconsRegular.users,
-              AppColors.alertCaution,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => PersonasScreen(database: widget.database)),
-              ),
-            ),
-            _buildActionCard(
-              'Categorías',
-              PhosphorIconsRegular.squaresFour,
-              AppTheme.incomeColor(context),
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => CategoriasScreen(database: widget.database)),
-              ),
-            ),
-            _buildActionCard(
-              'Gastos Fijos',
-              PhosphorIconsRegular.repeat,
-              AppTheme.expenseColor(context),
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => GastosFijosScreen(database: widget.database)),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionCard(
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.lgBR,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AppSemanticIcon(icon: icon, color: color, size: AppIconSize.md),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelLarge,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   // ==========================================
   // NAVEGACIÓN Y CÁLCULOS
@@ -489,9 +512,14 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _navigateToCuentas() => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => CuentasScreen(database: widget.database)),
+  void _navigateToCuentas() => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (_) => ResponsiveHelper.wrapModal(
+          context: context,
+          child: CuentasScreen(database: widget.database),
+        ),
       );
 
   void _navigateToTransacciones() => AppTabController.goToTransacciones();
@@ -576,17 +604,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     // Determinar cuál es la fecha más lejana
-    DateTime? fechaUltimaCuota =
-        cuotasPendientes.isNotEmpty ? cuotasPendientes.first.fechaVencimiento : null;
-    DateTime? fechaUltimaDeuda = deudasPendientes.isNotEmpty
-        ? deudasPendientes.first.fechaAcordadaPago
-        : null;
+    DateTime fechaLiberacion;
+    bool esDeuda;
 
-    final bool esDeuda = (fechaUltimaDeuda != null && fechaUltimaCuota != null)
-        ? fechaUltimaDeuda.isAfter(fechaUltimaCuota)
-        : fechaUltimaDeuda != null;
-
-    final fechaLiberacion = esDeuda ? fechaUltimaDeuda! : fechaUltimaCuota!;
+    if (deudasPendientes.isNotEmpty && cuotasPendientes.isNotEmpty) {
+      final fechaDeuda = deudasPendientes.first.fechaAcordadaPago!;
+      final fechaCuota = cuotasPendientes.first.fechaVencimiento;
+      esDeuda = fechaDeuda.isAfter(fechaCuota);
+      fechaLiberacion = esDeuda ? fechaDeuda : fechaCuota;
+    } else if (deudasPendientes.isNotEmpty) {
+      esDeuda = true;
+      fechaLiberacion = deudasPendientes.first.fechaAcordadaPago!;
+    } else {
+      esDeuda = false;
+      fechaLiberacion = cuotasPendientes.first.fechaVencimiento;
+    }
 
     // Obtener descripción
     String descripcion;
@@ -658,4 +690,21 @@ class _HomeScreenState extends State<HomeScreen> {
       return ingresos - egresosDebito - totalCuotas - totalGastosFijos;
     });
   }
+}
+
+/// Clase auxiliar para métricas secundarias del Dashboard
+class _MetricData {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? color;
+  final VoidCallback onTap;
+
+  _MetricData({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.color,
+    required this.onTap,
+  });
 }

@@ -1,0 +1,335 @@
+ ¡Perfecto! Ahora voy a crear un resumen visual de los cambios:
+
+  ---
+  ✅ FASE 3.2 COMPLETADA - REPORTESSCREEN RESPONSIVO
+
+  📊 RESUMEN EJECUTIVO
+
+  El ReportesScreen ha sido completamente refactorizado con un sistema de gráficos adaptativos que escala elegantemente entre dispositivos móviles, tablets y desktop. La experiencia visual ahora es fluida y aprovecha el espacio disponible de cada formato.
+
+  ---
+  🎨 CAMBIOS IMPLEMENTADOS
+
+  1. Sistema de Alturas Adaptativas ⭐
+
+  ANTES (hardcoded):
+  ❌ SizedBox(height: 200, child: PieChart(...))      // Línea 209
+  ❌ SizedBox(height: 180, child: BarChart(...))      // Línea 391
+
+  DESPUÉS (responsivo):
+  ✅ final chartHeight = ResponsiveHelper.getChartHeight(context);
+  ✅ SizedBox(height: chartHeight, child: PieChart(...))
+  ✅ SizedBox(height: chartHeight, child: BarChart(...))
+
+  Alturas por dispositivo:
+
+  ┌─────────────┬─────────────────┐
+  │ Dispositivo │ Altura Gráficos │
+  ├─────────────┼─────────────────┤
+  │ Mobile      │ 200px           │
+  ├─────────────┼─────────────────┤
+  │ Tablet      │ 300px           │
+  ├─────────────┼─────────────────┤
+  │ Desktop     │ 400px           │
+  └─────────────┴─────────────────┘
+
+  ---
+  2. Layout Dual: Column vs Row 🔄
+
+  MOBILE (< 600dp) - Vertical Stack:
+
+  ┌──────────────────────┐
+  │  GASTOS POR CATEG.   │
+  ├──────────────────────┤
+  │                      │
+  │    🥧 PIE CHART     │  ← 200px altura
+  │                      │
+  ├──────────────────────┤
+  │ ● Categoría A  35%  │
+  │ ● Categoría B  28%  │  ← Leyenda debajo
+  │ ● Categoría C  20%  │
+  └──────────────────────┘
+
+  Implementación:
+  Column(
+    children: [
+      SizedBox(height: chartHeight, child: pieChart),
+      SizedBox(height: AppSpacing.md),
+      _buildCategoryLegend(...),
+    ],
+  )
+
+  TABLET/DESKTOP (≥ 600dp) - Horizontal Split:
+
+  ┌───────────────────────────────────────────────┐
+  │  GASTOS POR CATEGORÍA                         │
+  ├────────────────┬──────────────────────────────┤
+  │                │  ● Categoría A  $150,000  35%│
+  │   🥧 PIE      │  ● Categoría B  $120,000  28%│  ← 300/400px altura
+  │    CHART      │  ● Categoría C   $85,000  20%│
+  │                │  ● Categoría D   $60,000  14%│
+  │    40%         │         60%                  │
+  └────────────────┴──────────────────────────────┘
+
+  Implementación:
+  Row(
+    children: [
+      Expanded(flex: 40, child: pieChart),       // 40% izquierda
+      SizedBox(width: AppSpacing.lg),
+      Expanded(flex: 60, child: legend),         // 60% derecha
+    ],
+  )
+
+  ---
+  3. Padding Horizontal Responsivo
+
+  ANTES:
+  ❌ body: ListView(padding: EdgeInsets.all(AppSpacing.base), ...)
+
+  DESPUÉS:
+  ✅ final horizontalPadding = ResponsiveHelper.getHorizontalPadding(context);
+  ✅ body: ListView(
+       padding: EdgeInsets.symmetric(
+         horizontal: horizontalPadding,  // 16/32/48dp
+         vertical: AppSpacing.base,
+       ),
+     )
+
+  ┌─────────────┬────────────────────┐
+  │ Dispositivo │ Padding Horizontal │
+  ├─────────────┼────────────────────┤
+  │ Mobile      │ 16dp               │
+  ├─────────────┼────────────────────┤
+  │ Tablet      │ 32dp               │
+  ├─────────────┼────────────────────┤
+  │ Desktop     │ 48dp               │
+  └─────────────┴────────────────────┘
+
+  ---
+  4. Migración Completa a Phosphor Icons
+
+  ┌───────────────┬───────────────────────┬────────────────────────────────────┐
+  │  Componente   │   Antes (Material)    │         Después (Phosphor)         │
+  ├───────────────┼───────────────────────┼────────────────────────────────────┤
+  │ Exportar      │ Icons.ios_share       │ PhosphorIconsRegular.export        │
+  ├───────────────┼───────────────────────┼────────────────────────────────────┤
+  │ Mes anterior  │ Icons.chevron_left    │ PhosphorIconsRegular.caretLeft     │
+  ├───────────────┼───────────────────────┼────────────────────────────────────┤
+  │ Mes siguiente │ Icons.chevron_right   │ PhosphorIconsRegular.caretRight    │
+  ├───────────────┼───────────────────────┼────────────────────────────────────┤
+  │ Ingresos      │ Icons.arrow_downward  │ PhosphorIconsRegular.arrowDownLeft │
+  ├───────────────┼───────────────────────┼────────────────────────────────────┤
+  │ Egresos       │ Icons.arrow_upward    │ PhosphorIconsRegular.arrowUpRight  │
+  ├───────────────┼───────────────────────┼────────────────────────────────────┤
+  │ Balance       │ Icons.account_balance │ PhosphorIconsRegular.scales        │
+  └───────────────┴───────────────────────┴────────────────────────────────────┘
+
+  Total migrado: 6 íconos Material → Phosphor
+
+  ---
+  5. Eliminación de Colores Hardcoded
+
+  ANTES:
+  ❌ Colors.grey[600]          // Texto vacío
+  ❌ Colors.white              // Título de sector pie
+  ❌ Colors.grey.withValues()  // Grid del BarChart
+  ❌ TextStyle(fontSize: 12)   // Tamaños hardcoded
+
+  DESPUÉS:
+  ✅ scheme.onSurfaceVariant                    // Texto vacío
+  ✅ scheme.onPrimary                           // Título de sector
+  ✅ scheme.outlineVariant.withValues(alpha:)   // Grid lines
+  ✅ Theme.of(context).textTheme.labelSmall     // Tipografía M3
+  ✅ Theme.of(context).textTheme.bodySmall      // Categorías
+
+  ---
+  🔧 REFACTORIZACIÓN ESTRUCTURAL
+
+  Métodos Creados:
+
+  1. _buildChartLayout()
+
+  Decide el layout según dispositivo (Column vs Row)
+  Widget _buildChartLayout(
+    List<_CategoriaGasto> gastos,
+    double total,
+    bool isMobile,
+    ColorScheme scheme,
+  )
+
+  2. _buildPieChart()
+
+  Renderiza el gráfico de torta (extraído para reutilización)
+  Widget _buildPieChart(
+    List<_CategoriaGasto> gastos,
+    double total,
+    ColorScheme scheme,
+  )
+
+  3. _buildCategoryLegend()
+
+  Lista de categorías con círculos de color y porcentajes
+  Widget _buildCategoryLegend(
+    List<_CategoriaGasto> gastos,
+    double total,
+    ColorScheme scheme,
+  )
+
+  Beneficio: Código más modular, reutilizable y testeable.
+
+  ---
+  📱 EXPERIENCIA VISUAL ESPERADA
+
+  MOBILE (Pixel 5, 393x851):
+
+  - Padding lateral: 16dp
+  - Gráfico de torta: 200px altura, centrado
+  - Leyenda: Debajo del gráfico, scroll vertical
+  - BarChart histórico: 200px altura
+  - Layout compacto y vertical
+
+  TABLET (Pixel Tablet, 1024x600):
+
+  - Padding lateral: 32dp
+  - Gráfico de torta: 300px altura
+  - Layout horizontal: Pie 40% izquierda, leyenda 60% derecha
+  - BarChart histórico: 300px altura
+  - Mejor aprovechamiento del ancho
+
+  DESKTOP (Windows, >840dp):
+
+  - Padding lateral: 48dp
+  - Gráfico de torta: 400px altura
+  - Layout horizontal optimizado
+  - BarChart histórico: 400px altura
+  - Máxima legibilidad y espaciado
+
+  ---
+  🔍 VERIFICACIÓN DE CALIDAD
+
+  flutter analyze --no-pub
+  Resultado: ✅ No issues found! (ran in 3.5s)
+
+  Métricas:
+  - ✅ Cero warnings
+  - ✅ Cero errores
+  - ✅ Cero colores hardcoded
+  - ✅ Cero alturas fijas
+  - ✅ 6/6 íconos migrados a Phosphor
+  - ✅ Lógica de negocio intacta
+  - ✅ Queries DB sin modificar
+
+  ---
+  📝 CÓDIGO CLAVE
+
+  Layout Responsivo del PieChart:
+
+  if (isMobile) {
+    // Vertical: Gráfico arriba, leyenda abajo
+    return Column(
+      children: [
+        SizedBox(height: chartHeight, child: pieChart),
+        SizedBox(height: AppSpacing.md),
+        _buildCategoryLegend(gastos, total, scheme),
+      ],
+    );
+  }
+
+  // Horizontal: Gráfico 40% izquierda, leyenda 60% derecha
+  return SizedBox(
+    height: chartHeight,
+    child: Row(
+      children: [
+        Expanded(flex: 40, child: pieChart),
+        SizedBox(width: AppSpacing.lg),
+        Expanded(flex: 60, child: _buildCategoryLegend(...)),
+      ],
+    ),
+  );
+
+  BarChart con Altura Adaptativa:
+
+  final chartHeight = ResponsiveHelper.getChartHeight(context);
+  SizedBox(
+    height: chartHeight,  // 200/300/400 según dispositivo
+    child: BarChart(...),
+  )
+
+  ---
+  🎯 CUMPLIMIENTO DE REGLAS
+
+  ┌─────────────────────────────────────────────┬────────────────┐
+  │                    Regla                    │     Estado     │
+  ├─────────────────────────────────────────────┼────────────────┤
+  │ ✅ Eliminar alturas fijas (200px, 180px)    │ CUMPLIDO       │
+  ├─────────────────────────────────────────────┼────────────────┤
+  │ ✅ Usar ResponsiveHelper.getChartHeight()   │ CUMPLIDO       │
+  ├─────────────────────────────────────────────┼────────────────┤
+  │ ✅ Layout dual (Column mobile, Row desktop) │ CUMPLIDO       │
+  ├─────────────────────────────────────────────┼────────────────┤
+  │ ✅ Responsive horizontal padding            │ CUMPLIDO       │
+  ├─────────────────────────────────────────────┼────────────────┤
+  │ ✅ Cero colores hardcoded                   │ CUMPLIDO       │
+  ├─────────────────────────────────────────────┼────────────────┤
+  │ ✅ Migrar a Phosphor Icons                  │ CUMPLIDO (6/6) │
+  ├─────────────────────────────────────────────┼────────────────┤
+  │ ✅ No tocar lógica de negocio/DB            │ CUMPLIDO       │
+  └─────────────────────────────────────────────┴────────────────┘
+
+  ---
+  📋 ARCHIVOS MODIFICADOS
+
+  ┌────────────────────────────────────────────┬────────────────────────────────────────────────┐
+  │                  Archivo                   │                    Cambios                     │
+  ├────────────────────────────────────────────┼────────────────────────────────────────────────┤
+  │ lib/features/reportes/reportes_screen.dart │ Refactorización completa de layouts y gráficos │
+  └────────────────────────────────────────────┴────────────────────────────────────────────────┘
+
+  Líneas de código:
+  - Antes: ~470 líneas
+  - Después: ~553 líneas
+  - Delta: +83 líneas (nuevos métodos responsivos: _buildChartLayout, _buildPieChart, _buildCategoryLegend)
+
+  ---
+  🚀 ESTADO DEL PROYECTO
+
+  Completado:
+
+  - ✅ DÍA 1: Bug navegación + Migración M3 (9/9 pantallas)
+  - ✅ DÍA 2: Sistema responsividad + NavigationRail
+  - ✅ DÍA 3 - FASE 3.1: HomeScreen responsivo
+  - ✅ DÍA 3 - FASE 3.2: ReportesScreen responsivo ⭐ NUEVO
+
+  Pendiente:
+
+  - ⏳ DÍA 3 - FASE 3.3: ProyeccionScreen (SliverAppBar adaptativo)
+  - ⏳ DÍA 3 - FASE 3.4: TransaccionesScreen (dialog vs modal)
+  - ⏳ DÍA 3 - FASE 3.5: Optimizar screens restantes
+
+  ---
+  ✨ COMPARATIVA VISUAL
+
+  ANTES:
+
+  Mobile y Desktop igual:
+  ┌─────────────┬─────────────┐
+  │ Pie Chart   │ Leyenda     │  ← Siempre Row (200px fijo)
+  │   (fijo)    │  compacta   │
+  └─────────────┴─────────────┘
+
+  Padding: 16dp fijo en todos los dispositivos
+
+  DESPUÉS:
+
+  MOBILE:                     DESKTOP:
+  ┌───────────────┐          ┌────────┬─────────────┐
+  │  Pie Chart    │          │  Pie   │  Leyenda    │
+  │    200px      │          │ Chart  │  expandida  │
+  ├───────────────┤          │ 400px  │  60% ancho  │
+  │   Leyenda     │          │  40%   │             │
+  └───────────────┘          └────────┴─────────────┘
+
+  Padding: 16dp              Padding: 48dp
+
+  ---
+  ¿Deseas que continúe con la FASE 3.3 - ProyeccionScreen (SliverAppBar responsivo + gráficos adaptativos) o prefieres probar primero los reportes en diferentes tamaños de pantalla? 🎯

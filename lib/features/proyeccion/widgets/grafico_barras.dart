@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/responsive.dart';
 import '../models/proyeccion_models.dart';
 
 class GraficoBarras extends StatelessWidget {
@@ -60,26 +61,39 @@ class GraficoBarras extends StatelessWidget {
   }
 
   Widget _buildLeyenda(String label, Color color, {bool isLinea = false}) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: isLinea ? 2 : 16,
-          color: color,
-        ),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
+    return Builder(
+      builder: (context) {
+        return Row(
+          children: [
+            Container(
+              width: 16,
+              height: isLinea ? 2 : 16,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: isLinea ? null : BorderRadius.circular(AppRadius.xs),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildBarra(BuildContext context, MesProyeccion mes, double maxValor) {
-    final alturaCuotas = ((mes.totalCuotas / maxValor) * 200).toDouble();
-    final alturaFijos = incluirGastosFijos 
-        ? ((mes.totalGastosFijos / maxValor) * 200).toDouble()
+    // Altura adaptativa del gráfico según dispositivo
+    final chartHeight = ResponsiveHelper.getChartHeight(context);
+
+    final alturaCuotas = ((mes.totalCuotas / maxValor) * chartHeight).toDouble();
+    final alturaFijos = incluirGastosFijos
+        ? ((mes.totalGastosFijos / maxValor) * chartHeight).toDouble()
         : 0.0;
-    final alturaSueldo = sueldo != null 
-        ? ((sueldo! / maxValor) * 200).toDouble()
+    final alturaSueldo = sueldo != null
+        ? ((sueldo! / maxValor) * chartHeight).toDouble()
         : 0.0;
 
     final esLiberacion = mes.esMesLiberacion;
@@ -95,7 +109,7 @@ class GraficoBarras extends StatelessWidget {
             // Monto encima
             Text(
               Formatters.moneda(mes.totalCuotas + mes.totalGastosFijos),
-              style: const TextStyle(fontSize: 10),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 10),
             ),
             const SizedBox(height: 4),
             
@@ -143,8 +157,7 @@ class GraficoBarras extends StatelessWidget {
             // Mes abajo
             Text(
               mes.nombreMes,
-              style: TextStyle(
-                fontSize: 12,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 fontWeight: esLiberacion ? FontWeight.bold : FontWeight.normal,
               ),
             ),

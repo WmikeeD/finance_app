@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/database/database.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
@@ -40,7 +41,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
 
           if (cuentas.isEmpty) {
             return AppEmptyState(
-              icon: Icons.account_balance_wallet_outlined,
+              icon: PhosphorIconsRegular.wallet,
               title: 'No hay cuentas registradas',
               subtitle: 'Comienza agregando tu primera cuenta',
               buttonLabel: 'Agregar Cuenta',
@@ -60,7 +61,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddCuentaDialog(),
-        icon: const Icon(Icons.add),
+        icon: PhosphorIcon(PhosphorIconsRegular.plus),
         label: const Text('Nueva Cuenta'),
       ),
     );
@@ -71,16 +72,16 @@ class _CuentasScreenState extends State<CuentasScreen> {
     IconData iconData;
     switch (cuenta.icono) {
       case 'credit_card':
-        iconData = Icons.credit_card;
+        iconData = PhosphorIconsRegular.creditCard;
         break;
       case 'account_balance':
-        iconData = Icons.account_balance;
+        iconData = PhosphorIconsRegular.bank;
         break;
       case 'payments':
-        iconData = Icons.payments;
+        iconData = PhosphorIconsRegular.money;
         break;
       default:
-        iconData = Icons.account_balance_wallet;
+        iconData = PhosphorIconsRegular.wallet;
     }
 
     final Color cardColor =
@@ -95,7 +96,7 @@ class _CuentasScreenState extends State<CuentasScreen> {
             color: cardColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          child: Icon(iconData, color: cardColor),
+          child: PhosphorIcon(iconData, color: cardColor, size: 24),
         ),
         title: Text(
           cuenta.nombre,
@@ -152,19 +153,19 @@ class _CuentasScreenState extends State<CuentasScreen> {
               children: [
                 TextField(
                   controller: nombreController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Nombre de la cuenta',
                     hintText: 'Ej: Cuenta Corriente',
-                    prefixIcon: Icon(Icons.edit),
+                    prefixIcon: PhosphorIcon(PhosphorIconsRegular.pencilSimple),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.base),
                 DropdownButtonFormField<String>(
                   key: ValueKey(tipoCuenta),
                   initialValue: tipoCuenta,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Tipo de cuenta',
-                    prefixIcon: Icon(Icons.category),
+                    prefixIcon: PhosphorIcon(PhosphorIconsRegular.squaresFour),
                   ),
                   items: const [
                     DropdownMenuItem(
@@ -186,10 +187,10 @@ class _CuentasScreenState extends State<CuentasScreen> {
                 const SizedBox(height: AppSpacing.base),
                 TextField(
                   controller: saldoController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Saldo inicial',
                     hintText: '0',
-                    prefixIcon: Icon(Icons.attach_money),
+                    prefixIcon: PhosphorIcon(PhosphorIconsRegular.currencyDollar),
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
@@ -211,10 +212,10 @@ class _CuentasScreenState extends State<CuentasScreen> {
                   const SizedBox(height: AppSpacing.base),
                   TextField(
                     controller: limiteController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Límite de crédito',
                       hintText: 'Ej: 500000',
-                      prefixIcon: Icon(Icons.credit_score),
+                      prefixIcon: PhosphorIcon(PhosphorIconsRegular.creditCard),
                       helperText: 'Máximo que puedes gastar',
                     ),
                     keyboardType: TextInputType.number,
@@ -223,10 +224,10 @@ class _CuentasScreenState extends State<CuentasScreen> {
                   const SizedBox(height: AppSpacing.base),
                   TextField(
                     controller: diaCierreController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Día de cierre',
                       hintText: 'Ej: 25',
-                      prefixIcon: Icon(Icons.calendar_today),
+                      prefixIcon: PhosphorIcon(PhosphorIconsRegular.calendarBlank),
                       helperText: 'Día del mes (1-31)',
                     ),
                     keyboardType: TextInputType.number,
@@ -238,10 +239,10 @@ class _CuentasScreenState extends State<CuentasScreen> {
                   const SizedBox(height: AppSpacing.base),
                   TextField(
                     controller: diaPagoController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Día de pago',
                       hintText: 'Ej: 5',
-                      prefixIcon: Icon(Icons.event),
+                      prefixIcon: PhosphorIcon(PhosphorIconsRegular.calendar),
                       helperText: 'Día del mes (1-31)',
                     ),
                     keyboardType: TextInputType.number,
@@ -265,10 +266,10 @@ class _CuentasScreenState extends State<CuentasScreen> {
                   const SizedBox(height: AppSpacing.base),
                   TextField(
                     controller: metaController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Meta de ahorro (opcional)',
                       hintText: 'Ej: 500000',
-                      prefixIcon: Icon(Icons.flag),
+                      prefixIcon: PhosphorIcon(PhosphorIconsRegular.flag),
                       helperText: 'Monto que deseas ahorrar',
                     ),
                     keyboardType: TextInputType.number,
@@ -516,10 +517,10 @@ class _CuentasScreenState extends State<CuentasScreen> {
             const SizedBox(height: AppSpacing.base),
             TextField(
               controller: metaController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Meta de ahorro',
                 hintText: 'Ej: 500000',
-                prefixIcon: Icon(Icons.flag),
+                prefixIcon: PhosphorIcon(PhosphorIconsRegular.flag),
                 prefixText: '\$ ',
               ),
               keyboardType: TextInputType.number,

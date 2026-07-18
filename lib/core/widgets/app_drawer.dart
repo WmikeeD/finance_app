@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../features/cuentas/cuentas_screen.dart';
 import '../../features/categorias/categorias_screen.dart';
 import '../../features/personas/personas_screen.dart';
@@ -6,6 +7,7 @@ import '../../features/gastos_fijos/gastos_fijos_screen.dart';
 import '../database/database.dart';
 import '../navigation/app_tab_controller.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
 
 class AppDrawer extends StatelessWidget {
   final AppDatabase database;
@@ -34,45 +36,49 @@ class AppDrawer extends StatelessWidget {
           _buildDrawerHeader(context),
           const SizedBox(height: AppSpacing.sm),
           _buildTabItem(context,
-              icon: Icons.dashboard, title: 'Dashboard', route: '/home'),
+              icon: PhosphorIconsRegular.house,
+              title: 'Dashboard',
+              route: '/home'),
           _buildTabItem(context,
-              icon: Icons.swap_horiz,
+              icon: PhosphorIconsRegular.arrowsLeftRight,
               title: 'Transacciones',
               route: '/transacciones'),
           _buildTabItem(context,
-              icon: Icons.bar_chart, title: 'Reportes', route: '/reportes'),
+              icon: PhosphorIconsRegular.chartBar,
+              title: 'Reportes',
+              route: '/reportes'),
           _buildTabItem(context,
-              icon: Icons.trending_up,
+              icon: PhosphorIconsRegular.trendUp,
               title: 'Proyección',
               route: '/proyeccion'),
           const Divider(height: 16),
           _buildSectionTitle(context, 'Gestión de Datos'),
           _buildDataItem(context,
-              icon: Icons.account_balance_wallet,
+              icon: PhosphorIconsRegular.wallet,
               title: 'Cuentas',
               route: '/cuentas',
               screen: CuentasScreen(database: database)),
           _buildDataItem(context,
-              icon: Icons.category,
+              icon: PhosphorIconsRegular.squaresFour,
               title: 'Categorías',
               route: '/categorias',
               screen: CategoriasScreen(database: database)),
           _buildDataItem(context,
-              icon: Icons.people,
+              icon: PhosphorIconsRegular.users,
               title: 'Personas',
               route: '/personas',
               screen: PersonasScreen(database: database)),
           _buildDataItem(context,
-              icon: Icons.repeat,
+              icon: PhosphorIconsRegular.repeat,
               title: 'Gastos Fijos',
               route: '/gastos_fijos',
               screen: GastosFijosScreen(database: database)),
           const Divider(height: 16),
           _buildSectionTitle(context, 'Configuración'),
           _buildTabItem(context,
-              icon: Icons.settings, title: 'Ajustes', route: '/settings'),
+              icon: PhosphorIconsRegular.gear, title: 'Ajustes', route: '/settings'),
           _buildDataItem(context,
-              icon: Icons.help_outline,
+              icon: PhosphorIconsRegular.question,
               title: 'Ayuda',
               route: '/help',
               screen: const Placeholder()),
@@ -120,7 +126,17 @@ class AppDrawer extends StatelessWidget {
       onTap: () {
         Navigator.pop(context);
         if (!isSelected) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+          // Usar modal fullscreen para mantener visible el bottomNavigationBar
+          // En tablets/desktop, limitar ancho a 600dp
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            builder: (_) => ResponsiveHelper.wrapModal(
+              context: context,
+              child: screen,
+            ),
+          );
         }
       },
     );
@@ -140,7 +156,7 @@ class AppDrawer extends StatelessWidget {
       padding:
           const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
       child: ListTile(
-        leading: Icon(icon, color: color),
+        leading: PhosphorIcon(icon, color: color),
         title: Text(
           title,
           style: TextStyle(
@@ -181,8 +197,8 @@ class AppDrawer extends StatelessWidget {
               color: scheme.surface,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(
-              Icons.account_balance_wallet,
+            child: PhosphorIcon(
+              PhosphorIconsRegular.wallet,
               size: 40,
               color: scheme.primary,
             ),

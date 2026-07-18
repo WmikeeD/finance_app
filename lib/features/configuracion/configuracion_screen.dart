@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:intl/intl.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/database/database.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -62,7 +63,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
+                PhosphorIcon(PhosphorIconsRegular.user,
+                    color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 12),
                 const Text(
                   'Perfil de Usuario',
@@ -76,21 +78,21 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.account_circle),
+            leading: PhosphorIcon(PhosphorIconsRegular.userCircle),
             title: const Text('Nombre'),
             subtitle: Text(perfil?.nombre ?? 'No configurado'),
-            trailing: const Icon(Icons.edit),
+            trailing: PhosphorIcon(PhosphorIconsRegular.pencilSimple),
             onTap: () => _showEditNombreDialog(perfil),
           ),
           ListTile(
-            leading: const Icon(Icons.cake),
+            leading: PhosphorIcon(PhosphorIconsRegular.cake),
             title: const Text('Fecha de Nacimiento'),
             subtitle: Text(
               perfil?.fechaNacimiento != null
                   ? _dateFormat.format(perfil!.fechaNacimiento!)
                   : 'No configurado',
             ),
-            trailing: const Icon(Icons.edit),
+            trailing: PhosphorIcon(PhosphorIconsRegular.pencilSimple),
             onTap: () => _showEditFechaNacimientoDialog(perfil),
           ),
         ],
@@ -109,7 +111,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(Icons.palette, color: Theme.of(context).colorScheme.primary),
+                PhosphorIcon(PhosphorIconsRegular.palette,
+                    color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 12),
                 const Text(
                   'Preferencias de la App',
@@ -133,7 +136,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             ),
             title: const Text('Color Principal'),
             subtitle: Text(colorActual.toUpperCase()),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            trailing: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16),
             onTap: () => _showColorPickerDialog(perfil),
           ),
           const Divider(height: 1),
@@ -155,12 +158,12 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         children: [
           Row(
             children: [
-              Icon(
+              PhosphorIcon(
                 temaOscuro == null
-                    ? Icons.brightness_auto
+                    ? PhosphorIconsRegular.circleHalf
                     : temaOscuro
-                        ? Icons.dark_mode
-                        : Icons.light_mode,
+                        ? PhosphorIconsRegular.moon
+                        : PhosphorIconsRegular.sun,
                 color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 12),
@@ -170,21 +173,21 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           ),
           const SizedBox(height: 10),
           SegmentedButton<bool?>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: false,
-                label: Text('Claro'),
-                icon: Icon(Icons.light_mode, size: 18),
+                label: const Text('Claro'),
+                icon: PhosphorIcon(PhosphorIconsRegular.sun, size: 18),
               ),
               ButtonSegment(
                 value: null,
-                label: Text('Sistema'),
-                icon: Icon(Icons.brightness_auto, size: 18),
+                label: const Text('Sistema'),
+                icon: PhosphorIcon(PhosphorIconsRegular.circleHalf, size: 18),
               ),
               ButtonSegment(
                 value: true,
-                label: Text('Oscuro'),
-                icon: Icon(Icons.dark_mode, size: 18),
+                label: const Text('Oscuro'),
+                icon: PhosphorIcon(PhosphorIconsRegular.moon, size: 18),
               ),
             ],
             selected: {temaOscuro},
@@ -214,7 +217,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(Icons.auto_awesome,
+                PhosphorIcon(PhosphorIconsRegular.sparkle,
                     color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 12),
                 const Text(
@@ -228,7 +231,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
 
           // Toggle activar/desactivar
           SwitchListTile(
-            secondary: const Icon(Icons.palette_outlined),
+            secondary: PhosphorIcon(PhosphorIconsRegular.palette),
             title: const Text('Activar color dinámico'),
             subtitle: Text(
               activado
@@ -274,7 +277,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                   _buildLimiteField(
                     label: 'Balance mínimo (precaución)',
                     valor: minimo,
-                    icono: Icons.warning_amber,
+                    icono: PhosphorIconsRegular.warningCircle,
                     color: Colors.red,
                     onSave: (v) => widget.database.guardarPerfil(
                       PerfilesCompanion(balanceMinimo: drift.Value(v)),
@@ -284,7 +287,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                   _buildLimiteField(
                     label: 'Balance máximo (meta)',
                     valor: maximo,
-                    icono: Icons.emoji_events,
+                    icono: PhosphorIconsRegular.trophy,
                     color: const Color(0xFFFFB300),
                     onSave: (v) => widget.database.guardarPerfil(
                       PerfilesCompanion(balanceMaximo: drift.Value(v)),
@@ -465,7 +468,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icono, color: color, size: 20),
+          child: PhosphorIcon(icono, color: color, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -505,7 +508,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(Icons.notifications,
+                    PhosphorIcon(PhosphorIconsRegular.bell,
                         color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 12),
                     const Text(
@@ -524,7 +527,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.notifications_off, color: Colors.grey[500]),
+                          PhosphorIcon(PhosphorIconsRegular.bellSlash,
+                              color: Colors.grey[500]),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
@@ -536,7 +540,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
-                        icon: const Icon(Icons.notification_add),
+                        icon: PhosphorIcon(PhosphorIconsRegular.bellRinging),
                         label: const Text('Solicitar permiso'),
                         onPressed: () async {
                           await NotificationService.solicitarPermiso();
@@ -548,7 +552,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                 ),
               ] else ...[
                 SwitchListTile(
-                  secondary: const Icon(Icons.credit_card),
+                  secondary: PhosphorIcon(PhosphorIconsRegular.creditCard),
                   title: const Text('Recordar cuotas por vencer'),
                   subtitle: const Text(
                     'Alerta antes del vencimiento de cuotas de crédito',
@@ -565,7 +569,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                 ),
                 const Divider(height: 1),
                 SwitchListTile(
-                  secondary: const Icon(Icons.receipt_long),
+                  secondary: PhosphorIcon(PhosphorIconsRegular.receipt),
                   title: const Text('Recordar gastos fijos'),
                   subtitle: const Text(
                     'Alerta antes del vencimiento de gastos fijos activos',
@@ -597,7 +601,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     final dias = perfil?.notifDiasAntes ?? 3;
     return Row(
       children: [
-        const Icon(Icons.schedule, size: 20),
+        PhosphorIcon(PhosphorIconsRegular.clock, size: 20),
         const SizedBox(width: 12),
         const Expanded(
           child: Text('Días de anticipación para las alertas'),
@@ -728,7 +732,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                         : null,
                   ),
                   child: isSelected
-                      ? const Icon(Icons.check, color: Colors.white)
+                      ? PhosphorIcon(PhosphorIconsRegular.check,
+                          color: Colors.white)
                       : null,
                 ),
                 title: Text(color['nombre']!),

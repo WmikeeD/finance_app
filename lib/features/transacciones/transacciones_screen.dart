@@ -6,8 +6,9 @@ import '../../core/database/database.dart';
 import '../../core/services/exportacion_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
-import '../cuentas/cuentas_screen.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/responsive.dart';
+import '../cuentas/cuentas_screen.dart';
 
 class TransaccionesScreen extends StatefulWidget {
   final AppDatabase database;
@@ -407,10 +408,13 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
           action: SnackBarAction(
             label: 'Ir a Cuentas',
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CuentasScreen(database: widget.database),
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                useSafeArea: true,
+                builder: (_) => ResponsiveHelper.wrapModal(
+                  context: context,
+                  child: CuentasScreen(database: widget.database),
                 ),
               );
             },

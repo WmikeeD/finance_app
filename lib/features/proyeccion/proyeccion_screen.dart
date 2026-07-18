@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' hide Column;
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/database/database.dart';
+import '../../core/utils/responsive.dart';
 import 'models/proyeccion_models.dart';
 import 'widgets/header_controls.dart';
 import 'widgets/liberacion_banner.dart';
@@ -217,6 +219,14 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final deviceType = ResponsiveHelper.getDeviceType(context);
+    final isMobile = deviceType == DeviceType.mobile;
+
+    // SliverAppBar altura adaptativa: más espacio en tablets/desktop
+    final expandedHeight = _mostrarFiltros
+        ? (isMobile ? 200.0 : 240.0)
+        : 60.0;
+
     return Scaffold(
       body: CustomScrollView(
         controller: _scrollController,
@@ -224,7 +234,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
           SliverAppBar(
             floating: true,
             pinned: true,
-            expandedHeight: _mostrarFiltros ? 200 : 60,
+            expandedHeight: expandedHeight,
             title: const Text('Proyección de Cuotas'),
             actions: [
               if (_isLoading)
@@ -239,7 +249,11 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
                   ),
                 ),
               IconButton(
-                icon: Icon(_mostrarFiltros ? Icons.expand_less : Icons.tune),
+                icon: PhosphorIcon(
+                  _mostrarFiltros
+                      ? PhosphorIconsRegular.caretUp
+                      : PhosphorIconsRegular.faders,
+                ),
                 onPressed: _toggleFiltros,
                 tooltip: 'Mostrar/ocultar filtros',
               ),
@@ -293,6 +307,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
               pinned: true,
               delegate: LiberacionBannerDelegate(
                 mesLiberacion: _mesLiberacion!,
+                isMobile: isMobile,
               ),
             ),
 
@@ -310,54 +325,106 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
             hasScrollBody: true,
             child: _mesesProyeccion.isEmpty && !_isLoading
                 ? _buildEmptyState()
-                : Column(
-                    children: [
-                      if (_mostrarGrafico)
-                        Expanded(
-                          flex: _mostrarDetalle ? 1 : 2,
-                          child: GraficoBarras(
-                            meses: _mesesProyeccion,
-                            sueldo: _sueldo,
-                            incluirGastosFijos: _incluirGastosFijos,
-                            onMesSeleccionado: (_) {},
-                          ),
-                        ),
-                      if (_mostrarGrafico && _mostrarDetalle)
-                        const Divider(height: 1, thickness: 2),
-                      if (_mostrarDetalle)
-                        Expanded(
-                          flex: _mostrarGrafico ? 1 : 2,
-                          child: DetalleMeses(
-                            meses: _mesesProyeccion,
-                            incluirGastosFijos: _incluirGastosFijos,
-                            sueldo: _sueldo,
-                            onMesTap: (_) {},
-                          ),
-                        ),
-                    ],
-                  ),
+                : _buildResponsiveContent(isMobile),
           ),
         ],
       ),
     );
   }
 
+  /// Layout responsivo: Column en mobile, Row en tablet/desktop
+  Widget _buildResponsiveContent(bool isMobile) {
+    if (isMobile) {
+      // Mobile: Layout vertical tradicional
+      return Column(
+        children: [
+          if (_mostrarGrafico)
+            Expanded(
+              flex: _mostrarDetalle ? 1 : 2,
+              child: GraficoBarras(
+                meses: _mesesProyeccion,
+                sueldo: _sueldo,
+                incluirGastosFijos: _incluirGastosFijos,
+                onMesSeleccionado: (_) {},
+              ),
+            ),
+          if (_mostrarGrafico && _mostrarDetalle)
+            const Divider(height: 1, thickness: 2),
+          if (_mostrarDetalle)
+            Expanded(
+              flex: _mostrarGrafico ? 1 : 2,
+              child: DetalleMeses(
+                meses: _mesesProyeccion,
+                incluirGastosFijos: _incluirGastosFijos,
+                sueldo: _sueldo,
+                onMesTap: (_) {},
+              ),
+            ),
+        ],
+      );
+    }
+
+    // Tablet/Desktop: Layout horizontal 50/50
+    return Row(
+      children: [
+        // Columna izquierda: Gráfico de barras (50%)
+        if (_mostrarGrafico)
+          Expanded(
+            flex: _mostrarDetalle ? 1 : 2,
+            child: GraficoBarras(
+              meses: _mesesProyeccion,
+              sueldo: _sueldo,
+              incluirGastosFijos: _incluirGastosFijos,
+              onMesSeleccionado: (_) {},
+            ),
+          ),
+
+        // Divider vertical entre columnas
+        if (_mostrarGrafico && _mostrarDetalle)
+          const VerticalDivider(width: 1, thickness: 2),
+
+        // Columna derecha: Detalle mensual con scroll independiente (50%)
+        if (_mostrarDetalle)
+          Expanded(
+            flex: _mostrarGrafico ? 1 : 2,
+            child: DetalleMeses(
+              meses: _mesesProyeccion,
+              incluirGastosFijos: _incluirGastosFijos,
+              sueldo: _sueldo,
+              onMesTap: (_) {},
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildEmptyState() {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.trending_up, size: 64, color: Colors.grey[400]),
+          PhosphorIcon(
+            PhosphorIconsRegular.trendUp,
+            size: 64,
+            color: scheme.outline,
+          ),
           const SizedBox(height: 16),
           Text(
             'Sin cuotas pendientes',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            style: textTheme.titleMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Agrega compras a crédito para ver\ntu proyección financiera',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey[500]),
+            style: textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),

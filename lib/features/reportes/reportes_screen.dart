@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:fl_chart/fl_chart.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/database/database.dart';
 import '../../core/services/exportacion_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/widgets/widgets.dart';
 
 class ReportesScreen extends StatefulWidget {
@@ -46,12 +48,14 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = ResponsiveHelper.getHorizontalPadding(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reportes'),
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.ios_share),
+            icon: PhosphorIcon(PhosphorIconsRegular.export),
             tooltip: 'Exportar reporte',
             onSelected: (fmt) => _exportarReporte(fmt),
             itemBuilder: (_) => const [
@@ -61,7 +65,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.base),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: AppSpacing.base,
+        ),
         children: [
           _buildSelectorMes(),
           const SizedBox(height: AppSpacing.base),
@@ -86,7 +93,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: PhosphorIcon(PhosphorIconsRegular.caretLeft),
           onPressed: _mesAnterior,
         ),
         Text(
@@ -94,7 +101,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         IconButton(
-          icon: const Icon(Icons.chevron_right),
+          icon: PhosphorIcon(PhosphorIconsRegular.caretRight),
           onPressed: esActual ? null : _mesSiguiente,
         ),
       ],
@@ -117,7 +124,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
               child: _buildResumenCard(
                 'Ingresos',
                 r.ingresos,
-                Icons.arrow_downward,
+                PhosphorIconsRegular.arrowDownLeft,
                 AppTheme.incomeColor(context),
               ),
             ),
@@ -126,7 +133,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
               child: _buildResumenCard(
                 'Egresos',
                 r.egresos,
-                Icons.arrow_upward,
+                PhosphorIconsRegular.arrowUpRight,
                 AppTheme.expenseColor(context),
               ),
             ),
@@ -135,7 +142,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
               child: _buildResumenCard(
                 'Balance',
                 r.ingresos - r.egresos,
-                Icons.account_balance,
+                PhosphorIconsRegular.scales,
                 r.ingresos >= r.egresos ? AppTheme.incomeColor(context) : AppTheme.expenseColor(context),
               ),
             ),
@@ -183,19 +190,25 @@ class _ReportesScreenState extends State<ReportesScreen> {
       builder: (_, snap) {
         if (!snap.hasData) return const SizedBox.shrink();
         final gastos = snap.data!;
+        final scheme = Theme.of(context).colorScheme;
+
         if (gastos.isEmpty) {
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Center(
-                child: Text('Sin egresos en este mes',
-                    style: TextStyle(color: Colors.grey[600])),
+                child: Text(
+                  'Sin egresos en este mes',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
               ),
             ),
           );
         }
 
         final total = gastos.fold<double>(0, (s, g) => s + g.total);
+        final deviceType = ResponsiveHelper.getDeviceType(context);
+        final isMobile = deviceType == DeviceType.mobile;
 
         return Card(
           child: Padding(
@@ -205,95 +218,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
               children: [
                 AppSectionHeader(title: 'Gastos por Categoría'),
                 const SizedBox(height: AppSpacing.base),
-                SizedBox(
-                  height: 200,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: PieChart(
-                          PieChartData(
-                            pieTouchData: PieTouchData(
-                              touchCallback: (event, response) {
-                                setState(() {
-                                  if (!event.isInterestedForInteractions ||
-                                      response == null ||
-                                      response.touchedSection == null) {
-                                    _sectorTocado = -1;
-                                    return;
-                                  }
-                                  _sectorTocado = response
-                                      .touchedSection!.touchedSectionIndex;
-                                });
-                              },
-                            ),
-                            sections: gastos.asMap().entries.map((e) {
-                              final isTouched = e.key == _sectorTocado;
-                              return PieChartSectionData(
-                                value: e.value.total,
-                                color: e.value.color,
-                                radius: isTouched ? 90 : 75,
-                                title: isTouched
-                                    ? '${(e.value.total / total * 100).toStringAsFixed(1)}%'
-                                    : '',
-                                titleStyle: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              );
-                            }).toList(),
-                            centerSpaceRadius: 30,
-                            sectionsSpace: 2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ListView(
-                          shrinkWrap: true,
-                          children: gastos.take(6).map((g) {
-                            final pct = (g.total / total * 100);
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      color: g.color,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      g.nombre,
-                                      style: const TextStyle(fontSize: 12),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${pct.toStringAsFixed(0)}%',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildChartLayout(gastos, total, isMobile, scheme),
                 const Divider(height: 24),
                 Text(
                   'TOP CATEGORÍAS',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
+                    color: scheme.outline,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 1.0,
                   ),
@@ -305,6 +235,127 @@ class _ReportesScreenState extends State<ReportesScreen> {
           ),
         );
       },
+    );
+  }
+
+  /// Layout responsivo: Column en mobile, Row en tablet/desktop
+  Widget _buildChartLayout(
+    List<_CategoriaGasto> gastos,
+    double total,
+    bool isMobile,
+    ColorScheme scheme,
+  ) {
+    final chartHeight = ResponsiveHelper.getChartHeight(context);
+    final pieChart = _buildPieChart(gastos, total, scheme);
+
+    if (isMobile) {
+      // Mobile: Gráfico arriba, lista abajo
+      return Column(
+        children: [
+          SizedBox(height: chartHeight, child: pieChart),
+          const SizedBox(height: AppSpacing.md),
+          _buildCategoryLegend(gastos, total, scheme),
+        ],
+      );
+    }
+
+    // Tablet/Desktop: Gráfico izquierda (40%), lista derecha (60%)
+    return SizedBox(
+      height: chartHeight,
+      child: Row(
+        children: [
+          Expanded(flex: 40, child: pieChart),
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(
+            flex: 60,
+            child: _buildCategoryLegend(gastos, total, scheme),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPieChart(
+    List<_CategoriaGasto> gastos,
+    double total,
+    ColorScheme scheme,
+  ) {
+    return PieChart(
+      PieChartData(
+        pieTouchData: PieTouchData(
+          touchCallback: (event, response) {
+            setState(() {
+              if (!event.isInterestedForInteractions ||
+                  response == null ||
+                  response.touchedSection == null) {
+                _sectorTocado = -1;
+                return;
+              }
+              _sectorTocado = response.touchedSection!.touchedSectionIndex;
+            });
+          },
+        ),
+        sections: gastos.asMap().entries.map((e) {
+          final isTouched = e.key == _sectorTocado;
+          return PieChartSectionData(
+            value: e.value.total,
+            color: e.value.color,
+            radius: isTouched ? 90 : 75,
+            title: isTouched
+                ? '${(e.value.total / total * 100).toStringAsFixed(1)}%'
+                : '',
+            titleStyle: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: scheme.onPrimary,
+            ),
+          );
+        }).toList(),
+        centerSpaceRadius: 30,
+        sectionsSpace: 2,
+      ),
+    );
+  }
+
+  Widget _buildCategoryLegend(
+    List<_CategoriaGasto> gastos,
+    double total,
+    ColorScheme scheme,
+  ) {
+    return ListView(
+      shrinkWrap: true,
+      children: gastos.take(6).map((g) {
+        final pct = (g.total / total * 100);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: g.color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  g.nombre,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '${pct.toStringAsFixed(0)}%',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -364,6 +415,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
         final meses = snap.data!;
         if (meses.isEmpty) return const SizedBox.shrink();
 
+        final scheme = Theme.of(context).colorScheme;
+        final chartHeight = ResponsiveHelper.getChartHeight(context);
         final maxVal = meses
             .expand((m) => [m.ingresos, m.egresos])
             .fold<double>(0, (a, b) => a > b ? a : b);
@@ -388,7 +441,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
-                  height: 180,
+                  height: chartHeight,
                   child: BarChart(
                     BarChartData(
                       maxY: maxVal == 0 ? 1 : maxVal * 1.2,
@@ -435,7 +488,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                                 padding: const EdgeInsets.only(top: 6),
                                 child: Text(
                                   meses[idx].nombreCorto,
-                                  style: const TextStyle(fontSize: 10),
+                                  style: Theme.of(context).textTheme.labelSmall,
                                 ),
                               );
                             },
@@ -445,7 +498,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       gridData: FlGridData(
                         drawVerticalLine: false,
                         getDrawingHorizontalLine: (_) => FlLine(
-                          color: Colors.grey.withValues(alpha: 0.2),
+                          color: scheme.outlineVariant.withValues(alpha: 0.5),
                           strokeWidth: 1,
                         ),
                       ),
