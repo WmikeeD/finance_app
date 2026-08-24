@@ -29,7 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final horizontalPadding = ResponsiveHelper.getHorizontalPadding(context);
 
     return Scaffold(
-      drawer: AppDrawer(database: widget.database, currentRoute: '/home'),
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [

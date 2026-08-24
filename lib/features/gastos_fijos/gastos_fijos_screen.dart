@@ -34,10 +34,6 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
           ),
         ],
       ),
-      drawer: AppDrawer(
-        database: widget.database,
-        currentRoute: '/gastos_fijos',
-      ),
       body: StreamBuilder<List<GastoFijo>>(
         stream: widget.database.watchGastosFijos(
           soloActivos: _soloActivos ? true : null,

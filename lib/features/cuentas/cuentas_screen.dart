@@ -22,10 +22,6 @@ class _CuentasScreenState extends State<CuentasScreen> {
       appBar: AppBar(
         title: const Text('Gestión de Cuentas'),
       ),
-      drawer: AppDrawer(
-        database: widget.database,
-        currentRoute: '/cuentas',
-      ),
       body: StreamBuilder<List<Cuenta>>(
         stream: widget.database.select(widget.database.cuentas).watch(),
         builder: (context, snapshot) {

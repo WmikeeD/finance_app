@@ -34,10 +34,6 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
           ),
         ],
       ),
-      drawer: AppDrawer(
-        database: widget.database,
-        currentRoute: '/categorias',
-      ),
       body: StreamBuilder<List<Categoria>>(
         stream: widget.database.select(widget.database.categorias).watch(),
         builder: (context, snapshot) {

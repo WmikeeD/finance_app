@@ -7,6 +7,11 @@ import '../../core/database/database.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/responsive.dart';
+import '../cuentas/cuentas_screen.dart';
+import '../categorias/categorias_screen.dart';
+import '../personas/personas_screen.dart';
+import '../gastos_fijos/gastos_fijos_screen.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
   final AppDatabase database;
@@ -42,6 +47,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             children: [
               _buildPerfilSection(perfil),
               const SizedBox(height: 24),
+              _buildGestionDatosSection(),
+              const SizedBox(height: 24),
               _buildPreferenciasSection(perfil),
               const SizedBox(height: 24),
               _buildColorDinamicoSection(perfil),
@@ -50,6 +57,65 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildGestionDatosSection() {
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                PhosphorIcon(PhosphorIconsRegular.database,
+                    color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 12),
+                const Text(
+                  'Gestión de Datos',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: PhosphorIcon(PhosphorIconsRegular.wallet),
+            title: const Text('Cuentas'),
+            subtitle: const Text('Gestiona tus cuentas bancarias y efectivo'),
+            trailing: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16),
+            onTap: () => _navigateToCuentas(),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: PhosphorIcon(PhosphorIconsRegular.squaresFour),
+            title: const Text('Categorías'),
+            subtitle: const Text('Organiza tus ingresos y gastos'),
+            trailing: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16),
+            onTap: () => _navigateToCategorias(),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: PhosphorIcon(PhosphorIconsRegular.users),
+            title: const Text('Personas'),
+            subtitle: const Text('Gestiona préstamos y gastos compartidos'),
+            trailing: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16),
+            onTap: () => _navigateToPersonas(),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: PhosphorIcon(PhosphorIconsRegular.repeat),
+            title: const Text('Gastos Fijos'),
+            subtitle: const Text('Administra tus gastos recurrentes'),
+            trailing: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16),
+            onTap: () => _navigateToGastosFijos(),
+          ),
+        ],
       ),
     );
   }
@@ -777,6 +843,56 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             child: const Text('Cerrar'),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Navegación a pantallas de gestión ────────────────────────────────────
+
+  void _navigateToCuentas() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ResponsiveHelper.wrapModal(
+        context: context,
+        child: CuentasScreen(database: widget.database),
+      ),
+    );
+  }
+
+  void _navigateToCategorias() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ResponsiveHelper.wrapModal(
+        context: context,
+        child: CategoriasScreen(database: widget.database),
+      ),
+    );
+  }
+
+  void _navigateToPersonas() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ResponsiveHelper.wrapModal(
+        context: context,
+        child: PersonasScreen(database: widget.database),
+      ),
+    );
+  }
+
+  void _navigateToGastosFijos() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ResponsiveHelper.wrapModal(
+        context: context,
+        child: GastosFijosScreen(database: widget.database),
       ),
     );
   }

@@ -30,10 +30,6 @@ class _PersonasScreenState extends State<PersonasScreen> {
           ),
         ],
       ),
-      drawer: AppDrawer(
-        database: widget.database,
-        currentRoute: '/personas',
-      ),
       body: StreamBuilder<List<Persona>>(
         stream: widget.database.select(widget.database.personas).watch(),
         builder: (context, snapshot) {
