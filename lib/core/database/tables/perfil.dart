@@ -34,6 +34,15 @@ class Perfiles extends Table {
   BoolColumn get notifGastosFijos =>
       boolean().withDefault(const Constant(true))();
 
+  // --- Campos de sincronización con Supabase (v10) ---
+  BoolColumn get sincronizado => boolean().withDefault(const Constant(false))();
+  TextColumn get syncId => text().nullable()(); // UUID de Supabase
+  DateTimeColumn get ultimaModificacion => dateTime().nullable()();
+
+  // --- Multi-tenant (v12) ---
+  // En Supabase, el perfil será 1:1 con auth.users(id)
+  TextColumn get userId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

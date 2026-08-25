@@ -80,7 +80,13 @@ class Transacciones extends Table {
   // Timestamps
   DateTimeColumn get creadaEn => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get actualizadaEn => dateTime().withDefault(currentDateAndTime)();
-  
+
   // Última vez que se modificó (para conflict resolution)
   DateTimeColumn get ultimaModificacion => dateTime().withDefault(currentDateAndTime)();
+
+  // --- Soft delete (v11) ---
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  // --- Multi-tenant (v12) ---
+  TextColumn get userId => text().nullable()();
 }

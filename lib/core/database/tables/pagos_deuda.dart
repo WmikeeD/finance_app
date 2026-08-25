@@ -26,4 +26,15 @@ class PagosDeuda extends Table {
   IntColumn get transaccionId => integer().nullable().references(Transacciones, #id, onDelete: KeyAction.setNull)();
 
   DateTimeColumn get creadoEn => dateTime().withDefault(currentDateAndTime)();
+
+  // --- Campos de sincronización con Supabase (v10) ---
+  BoolColumn get sincronizado => boolean().withDefault(const Constant(false))();
+  TextColumn get syncId => text().nullable()(); // UUID de Supabase
+  DateTimeColumn get ultimaModificacion => dateTime().withDefault(currentDateAndTime)();
+
+  // --- Soft delete (v11) ---
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  // --- Multi-tenant (v12) ---
+  TextColumn get userId => text().nullable()();
 }

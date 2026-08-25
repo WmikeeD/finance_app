@@ -31,4 +31,12 @@ class Categorias extends Table {
   // Timestamps
   DateTimeColumn get creadaEn => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get actualizadaEn => dateTime().withDefault(currentDateAndTime)();
+
+  // --- Campos de sincronización con Supabase (v10) ---
+  BoolColumn get sincronizado => boolean().withDefault(const Constant(false))();
+  TextColumn get syncId => text().nullable()(); // UUID de Supabase
+  DateTimeColumn get ultimaModificacion => dateTime().withDefault(currentDateAndTime)();
+
+  // --- Multi-tenant (v12) ---
+  TextColumn get userId => text().nullable()();
 }

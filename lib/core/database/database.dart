@@ -14,6 +14,7 @@ import 'tables/perfil.dart';
 import 'tables/deudas.dart';
 import 'tables/pagos_deuda.dart';
 import 'tables/gastos_fijos.dart';
+import 'tables/sync_mappings.dart';
 
 // Este archivo será generado por build_runner
 part 'database.g.dart';
@@ -26,16 +27,17 @@ part 'database.g.dart';
   Transacciones,
   Cuotas,
   Perfiles,
-  Deudas,  
-  PagosDeuda, 
+  Deudas,
+  PagosDeuda,
   GastosFijos,
+  SyncMappings,
 ])
 class AppDatabase extends _$AppDatabase {
   // Constructor
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 12;
 
   // Estrategia de migración
   @override
@@ -112,6 +114,77 @@ class AppDatabase extends _$AppDatabase {
                 ),
               );
             }
+          }
+
+          // Migración v9 → v10: campos de sincronización a TODAS las tablas
+          if (from < 10) {
+            // Categorias
+            await migrator.addColumn(categorias, categorias.sincronizado);
+            await migrator.addColumn(categorias, categorias.syncId);
+            await migrator.addColumn(categorias, categorias.ultimaModificacion);
+
+            // Cuentas
+            await migrator.addColumn(cuentas, cuentas.sincronizado);
+            await migrator.addColumn(cuentas, cuentas.syncId);
+            await migrator.addColumn(cuentas, cuentas.ultimaModificacion);
+
+            // Personas
+            await migrator.addColumn(personas, personas.sincronizado);
+            await migrator.addColumn(personas, personas.syncId);
+            await migrator.addColumn(personas, personas.ultimaModificacion);
+
+            // Cuotas
+            await migrator.addColumn(cuotas, cuotas.sincronizado);
+            await migrator.addColumn(cuotas, cuotas.syncId);
+            await migrator.addColumn(cuotas, cuotas.ultimaModificacion);
+
+            // Deudas
+            await migrator.addColumn(deudas, deudas.sincronizado);
+            await migrator.addColumn(deudas, deudas.syncId);
+            await migrator.addColumn(deudas, deudas.ultimaModificacion);
+
+            // PagosDeuda
+            await migrator.addColumn(pagosDeuda, pagosDeuda.sincronizado);
+            await migrator.addColumn(pagosDeuda, pagosDeuda.syncId);
+            await migrator.addColumn(pagosDeuda, pagosDeuda.ultimaModificacion);
+
+            // GastosFijos
+            await migrator.addColumn(gastosFijos, gastosFijos.sincronizado);
+            await migrator.addColumn(gastosFijos, gastosFijos.syncId);
+            await migrator.addColumn(gastosFijos, gastosFijos.ultimaModificacion);
+
+            // Perfiles
+            await migrator.addColumn(perfiles, perfiles.sincronizado);
+            await migrator.addColumn(perfiles, perfiles.syncId);
+            await migrator.addColumn(perfiles, perfiles.ultimaModificacion);
+
+            // Crear tabla SyncMappings
+            await migrator.createTable(syncMappings);
+          }
+
+          // Migración v10 → v11: soft delete en tablas críticas
+          if (from < 11) {
+            await migrator.addColumn(transacciones, transacciones.deletedAt);
+            await migrator.addColumn(cuotas, cuotas.deletedAt);
+            await migrator.addColumn(deudas, deudas.deletedAt);
+            await migrator.addColumn(pagosDeuda, pagosDeuda.deletedAt);
+          }
+
+          // Migración v11 → v12: campo userId para multi-tenant
+          if (from < 12) {
+            // Añadir userId a todas las tablas
+            await migrator.addColumn(categorias, categorias.userId);
+            await migrator.addColumn(cuentas, cuentas.userId);
+            await migrator.addColumn(personas, personas.userId);
+            await migrator.addColumn(transacciones, transacciones.userId);
+            await migrator.addColumn(cuotas, cuotas.userId);
+            await migrator.addColumn(deudas, deudas.userId);
+            await migrator.addColumn(pagosDeuda, pagosDeuda.userId);
+            await migrator.addColumn(gastosFijos, gastosFijos.userId);
+            await migrator.addColumn(perfiles, perfiles.userId);
+
+            // Nota: Los valores quedan NULL por ahora. En una futura migración,
+            // cuando se implemente autenticación, se llenará con el UUID del usuario.
           }
         },
       );
