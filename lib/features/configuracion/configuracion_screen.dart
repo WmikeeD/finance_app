@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/database/database.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/notification_listener_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
@@ -24,7 +25,31 @@ class ConfiguracionScreen extends StatefulWidget {
 
 class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
+
+  // Servicio de listener de notificaciones
+  late final NotificationListenerService _notificationListener;
+  bool _isListenerEnabled = false;
   
+  @override
+  void initState() {
+    super.initState();
+    _notificationListener = NotificationListenerService(database: widget.database);
+    _checkListenerStatus();
+  }
+
+  @override
+  void dispose() {
+    _notificationListener.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkListenerStatus() async {
+    final isEnabled = await _notificationListener.hasPermission();
+    if (mounted) {
+      setState(() => _isListenerEnabled = isEnabled);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,6 +74,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               const SizedBox(height: 24),
               _buildGestionDatosSection(),
               const SizedBox(height: 24),
+              _buildAutomatizacionSection(),
+              const SizedBox(height: 24),
               _buildPreferenciasSection(perfil),
               const SizedBox(height: 24),
               _buildColorDinamicoSection(perfil),
@@ -57,6 +84,154 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAutomatizacionSection() {
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                PhosphorIcon(PhosphorIconsRegular.robot,
+                    color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 12),
+                const Text(
+                  'Automatización',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: PhosphorIcon(
+              _isListenerEnabled
+                  ? PhosphorIconsRegular.bellRinging
+                  : PhosphorIconsRegular.bellSlash,
+            ),
+            title: const Text('Detectar transacciones bancarias'),
+            subtitle: Text(
+              NotificationListenerService.isPlatformSupported
+                  ? (_isListenerEnabled
+                      ? 'Activo - Detectando notificaciones automáticamente'
+                      : 'Inactivo - Actívalo para detección automática')
+                  : 'Disponible solo en Android',
+              style: const TextStyle(fontSize: 12),
+            ),
+            value: _isListenerEnabled,
+            onChanged: NotificationListenerService.isPlatformSupported
+                ? (value) async {
+              if (value) {
+                // Activar: verificar permisos
+                final hasPerms = await _notificationListener.hasPermission();
+                if (!hasPerms) {
+                  await _mostrarDialogoPermisos();
+                  return;
+                }
+
+                try {
+                  await _notificationListener.startListening();
+                  if (mounted) {
+                    setState(() => _isListenerEnabled = true);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Detección automática activada'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                    );
+                  }
+                }
+              } else {
+                // Desactivar
+                await _notificationListener.stopListening();
+                if (mounted) {
+                  setState(() => _isListenerEnabled = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Detección automática desactivada'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              }
+            }
+                : null, // Deshabilitar switch en plataformas no-Android
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                PhosphorIcon(PhosphorIconsRegular.info, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Detecta automáticamente transacciones desde notificaciones bancarias',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _mostrarDialogoPermisos() async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            PhosphorIcon(PhosphorIconsRegular.bellRinging,
+                color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 12),
+            const Text('Permiso de Notificaciones'),
+          ],
+        ),
+        content: const Text(
+          'Para detectar automáticamente transacciones bancarias, '
+          'necesitas habilitar el acceso a notificaciones.\n\n'
+          'Finance App solo procesará notificaciones de bancos autorizados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _notificationListener.requestPermission();
+
+              // Verificar nuevamente el estado después de un momento
+              await Future.delayed(const Duration(seconds: 1));
+              await _checkListenerStatus();
+            },
+            child: const Text('Abrir Configuración'),
+          ),
+        ],
       ),
     );
   }

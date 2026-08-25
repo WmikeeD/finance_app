@@ -3,8 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/database/database.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/ocr_service.dart';
+import '../../../core/models/ocr_result.dart';
 
 class CrearTransaccionModal extends StatefulWidget {
   final AppDatabase database;
@@ -146,6 +149,131 @@ class _CrearTransaccionModalState extends State<CrearTransaccionModal> {
     }
   }
 
+  Future<void> _escanearBoleta() async {
+    final scheme = Theme.of(context).colorScheme;
+
+    // Mostrar opciones de fuente de imagen
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(AppSpacing.base),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: PhosphorIcon(PhosphorIconsRegular.camera, color: scheme.primary),
+              title: const Text('Tomar foto'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: PhosphorIcon(PhosphorIconsRegular.image, color: scheme.primary),
+              title: const Text('Elegir de galería'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    // Capturar imagen
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: source);
+
+    if (image == null) return;
+
+    // Mostrar indicador de carga
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // Procesar imagen con OCR
+      final ocrService = OcrService();
+      final result = await ocrService.processImage(image.path);
+
+      if (!mounted) return;
+      Navigator.pop(context); // Cerrar indicador de carga
+
+      // Procesar resultado según el estado
+      switch (result.status) {
+        case OcrStatus.success:
+        case OcrStatus.partial:
+          // Auto-completar campos
+          final draft = result.draft!;
+          setState(() {
+            if (draft.monto != null) {
+              _montoController.text = draft.monto!.toStringAsFixed(0);
+            }
+            if (draft.descripcion != null) {
+              _descripcionController.text = draft.descripcion!;
+            }
+            if (draft.fecha != null) {
+              _fecha = draft.fecha!;
+            }
+          });
+
+          // Mostrar SnackBar sutil
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  PhosphorIcon(PhosphorIconsRegular.checkCircle, color: Colors.white),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      result.status == OcrStatus.success
+                          ? 'Datos extraídos de la boleta'
+                          : 'Datos parciales extraídos. Completa los campos faltantes.',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: scheme.tertiary,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          break;
+
+        case OcrStatus.unrecognized:
+        case OcrStatus.error:
+          // Mostrar error
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  PhosphorIcon(PhosphorIconsRegular.warning, color: Colors.white),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(result.status.getUserMessage(result)),
+                  ),
+                ],
+              ),
+              backgroundColor: scheme.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          break;
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Cerrar indicador de carga
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al procesar imagen: $e'),
+          backgroundColor: scheme.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -187,11 +315,24 @@ class _CrearTransaccionModalState extends State<CrearTransaccionModal> {
                 ),
               ),
 
-              // Título
-              Text(
-                'Nueva Transacción',
-                style: textTheme.headlineSmall,
-                textAlign: TextAlign.center,
+              // Título con botón de escaneo
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Nueva Transacción',
+                      style: textTheme.headlineSmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  // Botón de escaneo OCR
+                  IconButton.filledTonal(
+                    onPressed: _escanearBoleta,
+                    icon: PhosphorIcon(PhosphorIconsRegular.scan),
+                    tooltip: 'Escanear boleta',
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.lg),
 
