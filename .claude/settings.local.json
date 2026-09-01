@@ -6,7 +6,10 @@
       "Bash(Select-String \"\\\\.png\")",
       "Bash(Get-ChildItem -Recurse -Filter \"Dashboard*.png\")",
       "Bash(Select-Object -First 20 FullName)",
-      "Bash(flutter build *)"
+      "Bash(flutter build *)",
+      "Bash(dart run *)",
+      "Bash(powershell -Command \"if \\(Test-Path 'C:\\\\Users\\\\Mayckol\\\\Documents\\\\finance_app.db'\\) { Remove-Item 'C:\\\\Users\\\\Mayckol\\\\Documents\\\\finance_app.db' -Force; Write-Host 'Eliminado: finance_app.db' } else { Write-Host 'No existe: finance_app.db' }\")",
+      "Bash(powershell -Command \"if \\(Test-Path 'C:\\\\Users\\\\Mayckol\\\\Documents\\\\finance_app.db-wal'\\) { Remove-Item 'C:\\\\Users\\\\Mayckol\\\\Documents\\\\finance_app.db-wal' -Force; Write-Host 'Eliminado: finance_app.db-wal' } else { Write-Host 'No existe: finance_app.db-wal' }\")"
     ]
   },
   "enableAllProjectMcpServers": true,

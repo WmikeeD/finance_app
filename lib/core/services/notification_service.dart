@@ -128,7 +128,7 @@ class NotificationService {
       AppDatabase db, int diasAntes) async {
     final ahora = DateTime.now();
     final gastos = await (db.select(db.gastosFijos)
-          ..where((g) => g.activo.equals(true)))
+          ..where((g) => g.activo.equals(true) & g.deletedAt.isNull()))
         .get();
 
     for (final gasto in gastos) {

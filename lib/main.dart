@@ -1,13 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/config/supabase_config.dart';
 import 'core/database/database.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
-import 'core/widgets/app_shell.dart';
+import 'core/widgets/widgets.dart';
 import 'features/proyeccion/proyeccion_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Cargar variables de entorno desde .env
+  await dotenv.load(fileName: ".env");
+
+  // Inicializar Supabase con credenciales seguras
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    publishableKey: SupabaseConfig.supabasePublishableKey,
+  );
+
   await NotificationService.initialize();
   runApp(const FinanceApp());
 }
@@ -99,7 +112,7 @@ class _MyAppState extends State<MyApp> {
         '/proyeccion': (context) =>
             ProyeccionScreen(database: widget.database),
       },
-      home: AppShell(database: widget.database),
+      home: AuthGate(database: widget.database),
     );
   }
 }

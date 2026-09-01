@@ -56,7 +56,8 @@ app.*.map.json
 # Coverage
 coverage/
 
-# Environment variables
+# Variables de entorno y secretos
 .env
-.env.local
-.env.*.local
+.env*.local
+.env.production
+.env.development

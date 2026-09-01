@@ -9,3 +9,4 @@ export 'app_semantic_icon.dart';
 export 'finance_hero_card.dart';
 export 'transaction_list_item.dart';
 export 'liberacion_banner.dart';
+export 'auth_gate.dart';

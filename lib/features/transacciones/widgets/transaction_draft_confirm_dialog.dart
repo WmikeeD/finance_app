@@ -4,7 +4,7 @@ import '../../../core/models/raw_transaction_draft.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/database/database.dart';
-import '../../home/widgets/crear_transaccion_modal.dart';
+import '../presentation/widgets/crear_transaccion_sheet.dart';
 
 /// Modal de confirmación para borradores de transacciones
 /// detectados automáticamente (OCR o Notificaciones bancarias)
@@ -282,7 +282,7 @@ class TransactionDraftConfirmDialog extends StatelessWidget {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => CrearTransaccionModal(database: database),
+      builder: (_) => CrearTransaccionSheet(database: database),
     );
   }
 }

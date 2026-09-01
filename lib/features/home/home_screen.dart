@@ -12,7 +12,7 @@ import '../notificaciones/notificaciones_panel.dart';
 import '../proyeccion/models/proyeccion_models.dart';
 import 'widgets/liberacion_deuda_banner.dart';
 import 'widgets/proyeccion_cuotas_mini.dart';
-import 'widgets/crear_transaccion_modal.dart';
+import '../transacciones/presentation/widgets/crear_transaccion_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   final AppDatabase database;
@@ -121,11 +121,18 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Diseño responsivo: tipografía y padding escalan según dispositivo
   Widget _buildFinancialStatusCard() {
     return StreamBuilder<List<Cuenta>>(
-      stream: widget.database.select(widget.database.cuentas).watch(),
+      stream: (widget.database.select(widget.database.cuentas)
+            ..where((c) => c.activa.equals(true)))
+          .watch(),
       builder: (context, snapshot) {
+        // Mostrar loading placeholder mientras espera datos
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingBalanceCard();
+        }
+
         final cuentas = snapshot.data ?? [];
 
-        // Balance Total (efectivo + débito)
+        // Balance Total (efectivo + débito) - usa saldos recalculados
         final balanceTotal = cuentas
             .where((c) => c.tipo == 'efectivo' || c.tipo == 'debito')
             .fold(0.0, (sum, c) => sum + c.saldo);
@@ -162,6 +169,86 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       },
+    );
+  }
+
+  /// Loading placeholder para la tarjeta de balance mientras carga datos
+  Widget _buildLoadingBalanceCard() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final deviceType = ResponsiveHelper.getDeviceType(context);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(
+        deviceType == DeviceType.mobile ? AppSpacing.lg : AppSpacing.xl,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: AppRadius.xlBR,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Shimmer para zona de color
+          Container(
+            width: 120,
+            height: 24,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: AppRadius.lgBR,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Shimmer para label "Balance Total"
+          Container(
+            width: 100,
+            height: 14,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+
+          // Shimmer para monto principal
+          Container(
+            width: 200,
+            height: deviceType == DeviceType.mobile ? 36 : 48,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Shimmer para métricas secundarias
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: AppRadius.lgBR,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Container(
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: AppRadius.lgBR,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -421,6 +508,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: AppSpacing.md),
         StreamBuilder<List<Transaccion>>(
           stream: (widget.database.select(widget.database.transacciones)
+                ..where((t) => t.deletedAt.isNull())
                 ..orderBy([
                   (t) => OrderingTerm(
                         expression: t.fecha,
@@ -529,7 +617,10 @@ class _HomeScreenState extends State<HomeScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => CrearTransaccionModal(database: widget.database),
+      builder: (_) => ResponsiveHelper.wrapModal(
+        context: context,
+        child: CrearTransaccionSheet(database: widget.database),
+      ),
     );
   }
 
@@ -658,8 +749,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final inicioMes = DateTime(now.year, now.month, 1);
     final finMes = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
-    return widget.database
-        .select(widget.database.transacciones)
+    return (widget.database.select(widget.database.transacciones)
+          ..where((t) => t.deletedAt.isNull()))
         .watch()
         .asyncMap((transacciones) async {
       final transaccionesDelMes = transacciones
@@ -680,7 +771,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ..where((c) =>
                 c.fechaVencimiento.isBiggerOrEqualValue(inicioMes) &
                 c.fechaVencimiento.isSmallerOrEqualValue(finMes) &
-                c.pagada.equals(false)))
+                c.pagada.equals(false) &
+                c.deletedAt.isNull()))
           .get();
 
       final totalCuotas = cuotasDelMes.fold(0.0, (sum, c) => sum + c.monto);

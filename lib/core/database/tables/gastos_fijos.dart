@@ -15,7 +15,10 @@ class GastosFijos extends Table {
   // --- Campos de sincronización con Supabase (v10) ---
   BoolColumn get sincronizado => boolean().withDefault(const Constant(false))();
   TextColumn get syncId => text().nullable()(); // UUID de Supabase
-  DateTimeColumn get ultimaModificacion => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get ultimaModificacion => dateTime().nullable()();
+
+  // --- Soft delete (v11) ---
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 
   // --- Multi-tenant (v12) ---
   TextColumn get userId => text().nullable()();

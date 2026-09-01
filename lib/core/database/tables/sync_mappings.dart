@@ -19,7 +19,8 @@ class SyncMappings extends Table {
   // Versión de sincronización (para conflict detection)
   IntColumn get syncVersion => integer().withDefault(const Constant(1))();
 
-  // Primary key compuesta: tabla + localId
+  // Primary key compuesta: tabla + supabaseId
+  // Permite que múltiples UUIDs remotos apunten al mismo localId sin sobrescritura
   @override
-  Set<Column> get primaryKey => {tabla, localId};
+  Set<Column> get primaryKey => {tabla, supabaseId};
 }

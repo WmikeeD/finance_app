@@ -9,8 +9,8 @@ class Transacciones extends Table {
   // ID autoincremental
   IntColumn get id => integer().autoIncrement()();
   
-  // Tipo de transacción: 'ingreso' o 'egreso'
-  TextColumn get tipo => text().withLength(min: 1, max: 10)();
+  // Tipo de transacción: 'ingreso', 'egreso', 'transferencia'
+  TextColumn get tipo => text().withLength(min: 1, max: 20)();
   
   // Descripción/concepto de la transacción
   TextColumn get descripcion => text().withLength(min: 1, max: 255)();
@@ -40,7 +40,15 @@ class Transacciones extends Table {
   
   // Persona asociada (solo si esPrestamo = true)
   IntColumn get personaId => integer().nullable().references(Personas, #id, onDelete: KeyAction.restrict)();
-  
+
+  // --- Campos para transferencias entre cuentas ---
+
+  // Cuenta destino (solo para tipo = 'transferencia')
+  IntColumn get cuentaDestinoId => integer().nullable().references(Cuentas, #id, onDelete: KeyAction.restrict)();
+
+  // ID único de transferencia (vincula tx origen con tx destino)
+  TextColumn get transferenciaId => text().nullable()();
+
   // --- Campos para compras a crédito ---
   
   // Cantidad de cuotas (null si es débito)
@@ -82,7 +90,7 @@ class Transacciones extends Table {
   DateTimeColumn get actualizadaEn => dateTime().withDefault(currentDateAndTime)();
 
   // Última vez que se modificó (para conflict resolution)
-  DateTimeColumn get ultimaModificacion => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get ultimaModificacion => dateTime().nullable()();
 
   // --- Soft delete (v11) ---
   DateTimeColumn get deletedAt => dateTime().nullable()();

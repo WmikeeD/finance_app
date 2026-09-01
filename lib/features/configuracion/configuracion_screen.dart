@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/database/database.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/notification_listener_service.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
@@ -81,6 +84,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               _buildColorDinamicoSection(perfil),
               const SizedBox(height: 24),
               _buildNotificacionesSection(perfil),
+              const SizedBox(height: 24),
+              _buildCuentaSesionSection(),
             ],
           );
         },
@@ -1070,5 +1075,354 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         child: GastosFijosScreen(database: widget.database),
       ),
     );
+  }
+
+  // ── Sección cuenta y sesión ──────────────────────────────────────────────
+
+  Widget _buildCuentaSesionSection() {
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                PhosphorIcon(PhosphorIconsRegular.userCircle,
+                    color: scheme.primary),
+                const SizedBox(width: 12),
+                const Text(
+                  'Cuenta y Sesión',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+
+          // Email del usuario actual
+          if (email != null)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  PhosphorIcon(PhosphorIconsRegular.at,
+                      size: 20, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sesión activa',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          email,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const Divider(height: 1),
+
+          // Botón de sincronización manual
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: OutlinedButton.icon(
+              icon: PhosphorIcon(
+                PhosphorIconsRegular.arrowsClockwise,
+                color: scheme.primary,
+              ),
+              label: Text(
+                'Sincronizar Datos',
+                style: TextStyle(color: scheme.primary),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: scheme.primary),
+                minimumSize: const Size(double.infinity, 48),
+              ),
+              onPressed: _sincronizarDatos,
+            ),
+          ),
+
+          // Botón de forzar descarga completa
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: OutlinedButton.icon(
+              icon: PhosphorIcon(
+                PhosphorIconsRegular.downloadSimple,
+                color: scheme.tertiary,
+              ),
+              label: Text(
+                'Forzar Descarga Completa',
+                style: TextStyle(color: scheme.tertiary),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: scheme.tertiary),
+                minimumSize: const Size(double.infinity, 48),
+              ),
+              onPressed: _forzarDescargaCompleta,
+            ),
+          ),
+
+          // Botón de cerrar sesión
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: OutlinedButton.icon(
+              icon: PhosphorIcon(
+                PhosphorIconsRegular.signOut,
+                color: scheme.error,
+              ),
+              label: Text(
+                'Cerrar Sesión',
+                style: TextStyle(color: scheme.error),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: scheme.error),
+                minimumSize: const Size(double.infinity, 48),
+              ),
+              onPressed: _mostrarDialogoCerrarSesion,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _forzarDescargaCompleta() async {
+    final scheme = Theme.of(context).colorScheme;
+
+    // Confirmar acción
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Forzar Descarga Completa'),
+        content: const Text(
+          '¿Descargar todo el histórico desde Supabase?\n\n'
+          'Esto ignorará el timestamp de sincronización y descargará '
+          'todas las transacciones, cuentas y registros desde el inicio.\n\n'
+          'Útil si faltan datos después de la sincronización normal.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Descargar Todo'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    final syncService = SyncService(database: widget.database);
+
+    // Mostrar indicador de carga
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Text(
+                'Descargando histórico completo...',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final result = await syncService.syncAll(forceFullSync: true);
+
+      if (mounted) {
+        // Cerrar indicador de carga
+        Navigator.pop(context);
+
+        if (result.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Descarga completa exitosa: ${result.recordsPushed} enviados, ${result.recordsPulled} recibidos',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${result.errorMessage}'),
+              backgroundColor: scheme.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error inesperado: $e'),
+            backgroundColor: scheme.error,
+          ),
+        );
+      }
+    } finally {
+      syncService.dispose();
+    }
+  }
+
+  Future<void> _sincronizarDatos() async {
+    final scheme = Theme.of(context).colorScheme;
+    final syncService = SyncService(database: widget.database);
+
+    // Mostrar indicador de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Text(
+                'Sincronizando datos...',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final result = await syncService.syncAll();
+
+      if (mounted) {
+        // Cerrar indicador de carga
+        Navigator.pop(context);
+
+        if (result.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Sincronización completada: ${result.recordsPushed} enviados, ${result.recordsPulled} recibidos',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${result.errorMessage}'),
+              backgroundColor: scheme.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error inesperado: $e'),
+            backgroundColor: scheme.error,
+          ),
+        );
+      }
+    } finally {
+      syncService.dispose();
+    }
+  }
+
+  Future<void> _mostrarDialogoCerrarSesion() async {
+    final scheme = Theme.of(context).colorScheme;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: PhosphorIcon(
+          PhosphorIconsRegular.signOut,
+          color: scheme.error,
+          size: 32,
+        ),
+        title: const Text('¿Cerrar sesión?'),
+        content: const Text(
+          'Tendrás que volver a ingresar tus credenciales para acceder a tus datos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: scheme.error,
+              foregroundColor: scheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cerrar Sesión'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && mounted) {
+      try {
+        // Ejecutar cierre de sesión
+        await AuthService().signOut();
+
+        // El AuthGate se encargará automáticamente de redirigir a AuthScreen
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sesión cerrada correctamente'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al cerrar sesión: $e'),
+              backgroundColor: scheme.error,
+            ),
+          );
+        }
+      }
+    }
   }
 }

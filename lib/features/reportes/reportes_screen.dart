@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:drift/drift.dart' hide Column;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/database/database.dart';
@@ -8,6 +7,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/widgets.dart';
+import 'data/reportes_repository.dart';
+import 'models/reporte_models.dart';
 
 class ReportesScreen extends StatefulWidget {
   final AppDatabase database;
@@ -20,13 +21,17 @@ class ReportesScreen extends StatefulWidget {
 
 class _ReportesScreenState extends State<ReportesScreen> {
   late DateTime _mesSeleccionado;
+  late ReportesRepository _repository;
   int? _sectorTocado;
+  String? _filtroGastosCategoria; // 'debito', 'credito', o null (consolidado)
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _mesSeleccionado = DateTime(now.year, now.month, 1);
+    _repository = ReportesRepository(widget.database);
+    _filtroGastosCategoria = 'debito'; // Por defecto: Flujo de Caja
   }
 
   DateTime get _inicioMes => _mesSeleccionado;
@@ -41,7 +46,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
     final ahora = DateTime.now();
     final siguiente =
         DateTime(_mesSeleccionado.year, _mesSeleccionado.month + 1, 1);
-    if (siguiente.isBefore(DateTime(ahora.year, ahora.month + 1, 1))) {
+    // Permitir avanzar hasta 12 meses en el futuro para proyección de cuotas
+    final limitesFuturo = DateTime(ahora.year, ahora.month + 12, 1);
+    if (siguiente.isBefore(limitesFuturo) ||
+        siguiente.month == limitesFuturo.month && siguiente.year == limitesFuturo.year) {
       setState(() => _mesSeleccionado = siguiente);
     }
   }
@@ -74,6 +82,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
           const SizedBox(height: AppSpacing.base),
           _buildResumenMes(),
           const SizedBox(height: AppSpacing.lg),
+          _buildInfoCreditoCuotas(),
+          const SizedBox(height: AppSpacing.lg),
           _buildGastosPorCategoria(),
           const SizedBox(height: AppSpacing.lg),
           _buildEvolucionHistorica(),
@@ -86,8 +96,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   Widget _buildSelectorMes() {
     final nombre = _nombreMesAnio(_mesSeleccionado);
-    final esActual = _mesSeleccionado.year == DateTime.now().year &&
-        _mesSeleccionado.month == DateTime.now().month;
+    final ahora = DateTime.now();
+    final limitesFuturo = DateTime(ahora.year, ahora.month + 12, 1);
+    final enLimiteFuturo = _mesSeleccionado.year == limitesFuturo.year &&
+        _mesSeleccionado.month == limitesFuturo.month;
+    final esFuturo = _mesSeleccionado.isAfter(DateTime(ahora.year, ahora.month, 1));
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -96,13 +109,26 @@ class _ReportesScreenState extends State<ReportesScreen> {
           icon: PhosphorIcon(PhosphorIconsRegular.caretLeft),
           onPressed: _mesAnterior,
         ),
-        Text(
-          nombre,
-          style: Theme.of(context).textTheme.titleLarge,
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              nombre,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            if (esFuturo)
+              Text(
+                'Proyección',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppTheme.creditColor(context),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
         ),
         IconButton(
           icon: PhosphorIcon(PhosphorIconsRegular.caretRight),
-          onPressed: esActual ? null : _mesSiguiente,
+          onPressed: enLimiteFuturo ? null : _mesSiguiente,
         ),
       ],
     );
@@ -111,8 +137,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
   // ── Resumen del mes ───────────────────────────────────────────────────────
 
   Widget _buildResumenMes() {
-    return FutureBuilder<_ResumenMes>(
-      future: _calcularResumen(),
+    return StreamBuilder<ResumenFinanciero>(
+      stream: _repository.watchResumenMes(_inicioMes, _finMes),
       builder: (_, snap) {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -141,9 +167,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
             Expanded(
               child: _buildResumenCard(
                 'Balance',
-                r.ingresos - r.egresos,
+                r.balance,
                 PhosphorIconsRegular.scales,
-                r.ingresos >= r.egresos ? AppTheme.incomeColor(context) : AppTheme.expenseColor(context),
+                r.balance >= 0 ? AppTheme.incomeColor(context) : AppTheme.expenseColor(context),
               ),
             ),
           ],
@@ -182,11 +208,159 @@ class _ReportesScreenState extends State<ReportesScreen> {
     );
   }
 
+  // ── Información de crédito y cuotas ───────────────────────────────────────
+
+  Widget _buildInfoCreditoCuotas() {
+    return StreamBuilder<double>(
+      stream: _repository.watchCuotasMensuales(_inicioMes, _finMes),
+      builder: (_, cuotasMesSnap) {
+        return StreamBuilder<double>(
+          stream: _repository.watchDeudaTotalCuotasPendientes(),
+          builder: (_, deudaTotalSnap) {
+            final cuotasMes = cuotasMesSnap.data ?? 0;
+            final deudaTotal = deudaTotalSnap.data ?? 0;
+            final scheme = Theme.of(context).colorScheme;
+
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              PhosphorIcon(
+                                PhosphorIconsRegular.creditCard,
+                                size: 16,
+                                color: AppTheme.creditColor(context),
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(
+                                'Cuotas este Mes',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            Formatters.monedaConSimbolo(cuotasMes),
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: AppTheme.creditColor(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: scheme.outlineVariant,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              PhosphorIcon(
+                                PhosphorIconsRegular.calendar,
+                                size: 16,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(
+                                'Deuda Total Futura',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            Formatters.monedaConSimbolo(deudaTotal),
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ── Selector de tipo de gasto ─────────────────────────────────────────────
+
+  Widget _buildSelectorTipoGasto() {
+    return SegmentedButton<String?>(
+      segments: [
+        ButtonSegment<String?>(
+          value: 'debito',
+          label: Text(
+            'Flujo de Caja',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+          icon: PhosphorIcon(
+            PhosphorIconsRegular.coins,
+            size: 16,
+          ),
+        ),
+        ButtonSegment<String?>(
+          value: 'credito',
+          label: Text(
+            'Compras a Crédito',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+          icon: PhosphorIcon(
+            PhosphorIconsRegular.creditCard,
+            size: 16,
+          ),
+        ),
+        ButtonSegment<String?>(
+          value: null,
+          label: Text(
+            'Consolidado',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+          icon: PhosphorIcon(
+            PhosphorIconsRegular.chartPie,
+            size: 16,
+          ),
+        ),
+      ],
+      selected: {_filtroGastosCategoria},
+      onSelectionChanged: (Set<String?> newSelection) {
+        setState(() {
+          _filtroGastosCategoria = newSelection.first;
+        });
+      },
+      showSelectedIcon: false,
+    );
+  }
+
   // ── Gastos por categoría ──────────────────────────────────────────────────
 
   Widget _buildGastosPorCategoria() {
-    return FutureBuilder<List<_CategoriaGasto>>(
-      future: _calcularGastosPorCategoria(),
+    return StreamBuilder<List<CategoriaGastoReporte>>(
+      stream: _repository.watchGastosPorCategoria(
+        _inicioMes,
+        _finMes,
+        filtroFormaPago: _filtroGastosCategoria,
+      ),
       builder: (_, snap) {
         if (!snap.hasData) return const SizedBox.shrink();
         final gastos = snap.data!;
@@ -206,7 +380,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
           );
         }
 
-        final total = gastos.fold<double>(0, (s, g) => s + g.total);
+        final total = gastos.fold<double>(0, (s, g) => s + g.totalGasto);
         final deviceType = ResponsiveHelper.getDeviceType(context);
         final isMobile = deviceType == DeviceType.mobile;
 
@@ -217,6 +391,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppSectionHeader(title: 'Gastos por Categoría'),
+                const SizedBox(height: AppSpacing.sm),
+                _buildSelectorTipoGasto(),
                 const SizedBox(height: AppSpacing.base),
                 _buildChartLayout(gastos, total, isMobile, scheme),
                 const Divider(height: 24),
@@ -240,7 +416,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   /// Layout responsivo: Column en mobile, Row en tablet/desktop
   Widget _buildChartLayout(
-    List<_CategoriaGasto> gastos,
+    List<CategoriaGastoReporte> gastos,
     double total,
     bool isMobile,
     ColorScheme scheme,
@@ -276,7 +452,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Widget _buildPieChart(
-    List<_CategoriaGasto> gastos,
+    List<CategoriaGastoReporte> gastos,
     double total,
     ColorScheme scheme,
   ) {
@@ -298,11 +474,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
         sections: gastos.asMap().entries.map((e) {
           final isTouched = e.key == _sectorTocado;
           return PieChartSectionData(
-            value: e.value.total,
-            color: e.value.color,
+            value: e.value.totalGasto,
+            color: e.value.colorFlutter,
             radius: isTouched ? 90 : 75,
             title: isTouched
-                ? '${(e.value.total / total * 100).toStringAsFixed(1)}%'
+                ? '${e.value.porcentajeTotal.toStringAsFixed(1)}%'
                 : '',
             titleStyle: TextStyle(
               fontSize: 12,
@@ -318,14 +494,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Widget _buildCategoryLegend(
-    List<_CategoriaGasto> gastos,
+    List<CategoriaGastoReporte> gastos,
     double total,
     ColorScheme scheme,
   ) {
     return ListView(
       shrinkWrap: true,
       children: gastos.take(6).map((g) {
-        final pct = (g.total / total * 100);
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
@@ -334,7 +509,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 width: 10,
                 height: 10,
                 decoration: BoxDecoration(
-                  color: g.color,
+                  color: g.colorFlutter,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -347,7 +522,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 ),
               ),
               Text(
-                '${pct.toStringAsFixed(0)}%',
+                '${g.porcentajeTotal.toStringAsFixed(0)}%',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -359,8 +534,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
     );
   }
 
-  Widget _buildCategoriaRow(_CategoriaGasto g, double total) {
-    final pct = g.total / total;
+  Widget _buildCategoriaRow(CategoriaGastoReporte g, double total) {
+    final pct = g.totalGasto / total;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -375,7 +550,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: g.color,
+                      color: g.colorFlutter,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -384,7 +559,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 ],
               ),
               Text(
-                Formatters.monedaConSimbolo(g.total),
+                Formatters.monedaConSimbolo(g.totalGasto),
                 style: const TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w600),
               ),
@@ -397,7 +572,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
               value: pct,
               minHeight: 6,
               backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation(g.color),
+              valueColor: AlwaysStoppedAnimation(g.colorFlutter),
             ),
           ),
         ],
@@ -408,8 +583,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
   // ── Evolución histórica ───────────────────────────────────────────────────
 
   Widget _buildEvolucionHistorica() {
-    return FutureBuilder<List<_MesHistorico>>(
-      future: _calcularHistorico(),
+    return StreamBuilder<List<MesHistoricoReporte>>(
+      stream: _repository.watchHistoricoUltimosMeses(6),
       builder: (_, snap) {
         if (!snap.hasData) return const SizedBox.shrink();
         final meses = snap.data!;
@@ -445,6 +620,30 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   child: BarChart(
                     BarChartData(
                       maxY: maxVal == 0 ? 1 : maxVal * 1.2,
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipColor: (_) => scheme.inverseSurface,
+                          tooltipPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          tooltipMargin: 8,
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final isIngresos = rodIndex == 0;
+                            final label = isIngresos ? 'Ingresos' : 'Egresos';
+                            final value = Formatters.monedaConSimbolo(rod.toY);
+                            return BarTooltipItem(
+                              '$label\n$value',
+                              TextStyle(
+                                color: scheme.onInverseSurface,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                       barGroups: meses.asMap().entries.map((e) {
                         final i = e.key;
                         final m = e.value;
@@ -487,7 +686,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               return Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: Text(
-                                  meses[idx].nombreCorto,
+                                  meses[idx].nombreMes,
                                   style: Theme.of(context).textTheme.labelSmall,
                                 ),
                               );
@@ -532,17 +731,22 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   Future<void> _exportarReporte(String formato) async {
     try {
-      final resumen = await _calcularResumen();
-      final cats = await _calcularGastosPorCategoria();
-      final hist = await _calcularHistorico();
+      // Obtener datos del repositorio (consolidado para exportación)
+      final resumen = await _repository.watchResumenMes(_inicioMes, _finMes).first;
+      final cats = await _repository.watchGastosPorCategoria(
+        _inicioMes,
+        _finMes,
+        filtroFormaPago: null, // Consolidado en exportación
+      ).first;
+      final hist = await _repository.getHistoricoUltimosMeses(6);
 
       final catsMapa = cats
-          .map((c) => {'nombre': c.nombre, 'monto': c.total})
+          .map((c) => {'nombre': c.nombre, 'monto': c.totalGasto})
           .toList();
 
       final histMapa = hist
           .map((m) => {
-                'mes': m.nombreCorto,
+                'mes': m.nombreMes,
                 'ingresos': m.ingresos,
                 'egresos': m.egresos,
               })
@@ -567,106 +771,6 @@ class _ReportesScreenState extends State<ReportesScreen> {
     }
   }
 
-  // ── Cálculos de datos ─────────────────────────────────────────────────────
-
-  Future<_ResumenMes> _calcularResumen() async {
-    final db = widget.database;
-    final txs = await (db.select(db.transacciones)
-          ..where((t) =>
-              t.fecha.isBiggerOrEqualValue(_inicioMes) &
-              t.fecha.isSmallerOrEqualValue(_finMes)))
-        .get();
-
-    final cuotas = await (db.select(db.cuotas)
-          ..where((c) =>
-              c.fechaVencimiento.isBiggerOrEqualValue(_inicioMes) &
-              c.fechaVencimiento.isSmallerOrEqualValue(_finMes) &
-              c.pagada.equals(false)))
-        .get();
-
-    final ingresos = txs
-        .where((t) => t.tipo == 'ingreso')
-        .fold<double>(0, (s, t) => s + t.montoTotal);
-    final egresosDebito = txs
-        .where((t) => t.tipo == 'egreso' && t.formaPago == 'debito')
-        .fold<double>(0, (s, t) => s + t.montoTotal);
-    final totalCuotas = cuotas.fold<double>(0, (s, c) => s + c.monto);
-
-    return _ResumenMes(
-      ingresos: ingresos,
-      egresos: egresosDebito + totalCuotas,
-    );
-  }
-
-  Future<List<_CategoriaGasto>> _calcularGastosPorCategoria() async {
-    final db = widget.database;
-
-    final q = db.select(db.transacciones).join([
-      leftOuterJoin(
-          db.categorias, db.categorias.id.equalsExp(db.transacciones.categoriaId)),
-    ]);
-    q.where(db.transacciones.tipo.equals('egreso') &
-        db.transacciones.fecha.isBiggerOrEqualValue(_inicioMes) &
-        db.transacciones.fecha.isSmallerOrEqualValue(_finMes));
-
-    final rows = await q.get();
-
-    final Map<String, _CategoriaGasto> mapa = {};
-    for (final r in rows) {
-      final tx = r.readTable(db.transacciones);
-      final cat = r.readTableOrNull(db.categorias);
-      final nombre = cat?.nombre ?? 'Sin categoría';
-      final color = cat != null
-          ? Color(int.parse(cat.color.replaceFirst('#', '0xFF')))
-          : Colors.grey;
-
-      if (mapa.containsKey(nombre)) {
-        mapa[nombre] = _CategoriaGasto(
-          nombre: nombre,
-          total: mapa[nombre]!.total + tx.montoTotal,
-          color: color,
-        );
-      } else {
-        mapa[nombre] = _CategoriaGasto(
-          nombre: nombre,
-          total: tx.montoTotal,
-          color: color,
-        );
-      }
-    }
-
-    final lista = mapa.values.toList()
-      ..sort((a, b) => b.total.compareTo(a.total));
-    return lista;
-  }
-
-  Future<List<_MesHistorico>> _calcularHistorico() async {
-    final db = widget.database;
-    final ahora = DateTime.now();
-    final resultado = <_MesHistorico>[];
-
-    for (int i = 5; i >= 0; i--) {
-      final mes = DateTime(ahora.year, ahora.month - i, 1);
-      final fin = DateTime(mes.year, mes.month + 1, 0, 23, 59, 59);
-
-      final txs = await (db.select(db.transacciones)
-            ..where((t) =>
-                t.fecha.isBiggerOrEqualValue(mes) &
-                t.fecha.isSmallerOrEqualValue(fin)))
-          .get();
-
-      final ingresos = txs
-          .where((t) => t.tipo == 'ingreso')
-          .fold<double>(0, (s, t) => s + t.montoTotal);
-      final egresos = txs
-          .where((t) => t.tipo == 'egreso')
-          .fold<double>(0, (s, t) => s + t.montoTotal);
-
-      resultado.add(_MesHistorico(fecha: mes, ingresos: ingresos, egresos: egresos));
-    }
-
-    return resultado;
-  }
 
   // ── Utilidades ────────────────────────────────────────────────────────────
 
@@ -676,35 +780,5 @@ class _ReportesScreenState extends State<ReportesScreen> {
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ];
     return '${meses[fecha.month - 1]} ${fecha.year}';
-  }
-}
-
-// ── Modelos locales ───────────────────────────────────────────────────────────
-
-class _ResumenMes {
-  final double ingresos;
-  final double egresos;
-  const _ResumenMes({required this.ingresos, required this.egresos});
-}
-
-class _CategoriaGasto {
-  final String nombre;
-  final double total;
-  final Color color;
-  const _CategoriaGasto(
-      {required this.nombre, required this.total, required this.color});
-}
-
-class _MesHistorico {
-  final DateTime fecha;
-  final double ingresos;
-  final double egresos;
-
-  const _MesHistorico(
-      {required this.fecha, required this.ingresos, required this.egresos});
-
-  String get nombreCorto {
-    const m = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    return m[fecha.month - 1];
   }
 }

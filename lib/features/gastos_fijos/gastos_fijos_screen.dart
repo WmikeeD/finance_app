@@ -378,10 +378,12 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
                 const SizedBox(height: 14),
                 StreamBuilder<List<Categoria>>(
                   stream: (widget.database.select(widget.database.categorias)
-                        ..where((c) => c.tipo.equals('egreso')))
+                        ..where((c) => c.tipo.equals('egreso'))
+                        ..where((c) => c.activa.equals(true)))
                       .watch(),
                   builder: (_, snap) {
-                    final cats = snap.data ?? [];
+                    final catsRaw = snap.data ?? [];
+                    final cats = _deduplicarCategorias(catsRaw);
                     return DropdownButtonFormField<int?>(
                       key: ValueKey(categoriaId),
                       initialValue: categoriaId,
@@ -475,5 +477,17 @@ class _GastosFijosScreenState extends State<GastosFijosScreen> {
         ),
       ),
     );
+  }
+
+  /// Deduplicar categorías por nombre+tipo (salvaguarda a nivel UI)
+  List<Categoria> _deduplicarCategorias(List<Categoria> categorias) {
+    final mapa = <String, Categoria>{};
+    for (final cat in categorias) {
+      final key = '${cat.nombre.toLowerCase()}_${cat.tipo}';
+      if (!mapa.containsKey(key)) {
+        mapa[key] = cat;
+      }
+    }
+    return mapa.values.toList();
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -37,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   // Estrategia de migración
   @override
@@ -186,6 +187,29 @@ class AppDatabase extends _$AppDatabase {
             // Nota: Los valores quedan NULL por ahora. En una futura migración,
             // cuando se implemente autenticación, se llenará con el UUID del usuario.
           }
+
+          // Migración v12 → v13: campos para transferencias entre cuentas
+          if (from < 13) {
+            await migrator.addColumn(transacciones, transacciones.cuentaDestinoId);
+            await migrator.addColumn(transacciones, transacciones.transferenciaId);
+
+            // Crear categoría por defecto para transferencias
+            final existeTransferencia = await (select(categorias)
+                  ..where((c) =>
+                      c.nombre.equals('Transferencia') &
+                      c.tipo.equals('ingreso')))
+                .getSingleOrNull();
+            if (existeTransferencia == null) {
+              await into(categorias).insert(
+                CategoriasCompanion.insert(
+                  nombre: 'Transferencia',
+                  tipo: 'ingreso',
+                  icono: const Value('swap_horiz'),
+                  color: const Value('#2196F3'),
+                ),
+              );
+            }
+          }
         },
       );
 
@@ -330,6 +354,7 @@ class AppDatabase extends _$AppDatabase {
 
   Stream<List<Transaccion>> watchTransaccionesPaginadas(int limite) {
     return (select(transacciones)
+          ..where((t) => t.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.desc(t.fecha)])
           ..limit(limite))
         .watch();
@@ -337,6 +362,7 @@ class AppDatabase extends _$AppDatabase {
 
   Stream<List<GastoFijo>> watchGastosFijos({bool? soloActivos}) {
     final query = select(gastosFijos)
+      ..where((g) => g.deletedAt.isNull())
       ..orderBy([(g) => OrderingTerm.asc(g.diaVencimiento)]);
     if (soloActivos == true) {
       query.where((g) => g.activo.equals(true));
@@ -354,14 +380,126 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> eliminarGastoFijo(int id) async {
-    await (delete(gastosFijos)..where((g) => g.id.equals(id))).go();
+    // Soft-delete: marcar como eliminado en lugar de borrar
+    await (update(gastosFijos)..where((g) => g.id.equals(id))).write(
+      GastosFijosCompanion(
+        deletedAt: Value(DateTime.now()),
+        sincronizado: const Value(false),
+        ultimaModificacion: Value(DateTime.now()),
+      ),
+    );
   }
 
   Future<double> totalGastosFijosActivos() async {
     final activos = await (select(gastosFijos)
-          ..where((g) => g.activo.equals(true)))
+          ..where((g) => g.activo.equals(true) & g.deletedAt.isNull()))
         .get();
     return activos.fold<double>(0.0, (sum, g) => sum + g.monto);
+  }
+
+  // =============================================
+  // RECÁLCULO DE SALDOS
+  // =============================================
+
+  /// Recalcular el saldo real de una cuenta basado en transacciones activas
+  ///
+  /// Lógica diferenciada por tipo de cuenta:
+  /// - Efectivo/Débito: saldo = SUM(ingresos) - SUM(egresos efectivo/débito) + SUM(transferencias entrantes) - SUM(transferencias salientes)
+  /// - Crédito: saldo = - SUM(egresos a crédito) + SUM(ingresos/pagos) + SUM(transferencias entrantes)
+  /// Solo considera transacciones activas (deletedAt IS NULL)
+  Future<void> recalcularSaldoCuenta(int cuentaId) async {
+    try {
+      final cuenta = await (select(cuentas)
+            ..where((c) => c.id.equals(cuentaId)))
+          .getSingle();
+
+      // Obtener transacciones donde esta cuenta es origen (cuentaId)
+      final transaccionesOrigen = await (select(transacciones)
+            ..where((t) =>
+                t.cuentaId.equals(cuentaId) & t.deletedAt.isNull()))
+          .get();
+
+      // Obtener transferencias donde esta cuenta es destino (cuentaDestinoId)
+      final transferenciasEntrantes = await (select(transacciones)
+            ..where((t) =>
+                t.cuentaDestinoId.equals(cuentaId) &
+                t.tipo.equals('transferencia') &
+                t.deletedAt.isNull()))
+          .get();
+
+      double saldoCalculado = 0.0;
+
+      if (cuenta.tipo == 'credito') {
+        // CUENTAS DE CRÉDITO: saldo = - SUM(egresos a crédito) + SUM(ingresos/pagos) + SUM(transferencias entrantes)
+        // Ej: compra $300.000 → saldo = -300.000 (deuda)
+        //     pago $100.000   → saldo = -200.000 (deuda restante)
+        //     transferencia entrante $250.000 → saldo = +50.000 (saldo a favor)
+        for (final tx in transaccionesOrigen) {
+          if (tx.tipo == 'transferencia') {
+            // Transferencias salientes desde tarjeta de crédito (casos raros, pero posibles)
+            saldoCalculado -= tx.montoTotal;
+          } else if (tx.tipo == 'ingreso') {
+            // Ingresos = pagos/abonos a la tarjeta (reducen deuda)
+            saldoCalculado += tx.montoTotal;
+          } else if (tx.tipo == 'egreso' && tx.formaPago == 'credito') {
+            // Egresos a crédito = compras con esta tarjeta (aumentan deuda)
+            saldoCalculado -= tx.montoTotal;
+          }
+        }
+
+        // Sumar transferencias entrantes (pagos desde otras cuentas)
+        for (final tx in transferenciasEntrantes) {
+          saldoCalculado += tx.montoTotal;
+        }
+      } else {
+        // CUENTAS DE EFECTIVO/DÉBITO: saldo = SUM(ingresos) - SUM(egresos efectivo/débito) + SUM(transferencias entrantes) - SUM(transferencias salientes)
+        for (final tx in transaccionesOrigen) {
+          if (tx.tipo == 'transferencia') {
+            // Transferencia saliente (dinero que sale de esta cuenta)
+            saldoCalculado -= tx.montoTotal;
+          } else if (tx.formaPago == 'credito') {
+            // Las transacciones a crédito no afectan saldos de cuentas efectivo/débito
+            continue;
+          } else if (tx.tipo == 'ingreso') {
+            saldoCalculado += tx.montoTotal;
+          } else if (tx.tipo == 'egreso') {
+            saldoCalculado -= tx.montoTotal;
+          }
+        }
+
+        // Sumar transferencias entrantes (dinero que entra a esta cuenta)
+        for (final tx in transferenciasEntrantes) {
+          saldoCalculado += tx.montoTotal;
+        }
+      }
+
+      // Actualizar el saldo de la cuenta
+      await (update(cuentas)..where((c) => c.id.equals(cuentaId)))
+          .write(CuentasCompanion(
+        saldo: Value(saldoCalculado),
+      ));
+
+      debugPrint('Saldo recalculado para cuenta "${cuenta.nombre}" (${cuenta.tipo}): \$${saldoCalculado.toStringAsFixed(2)}');
+    } catch (e, stack) {
+      debugPrint('Error al recalcular saldo de cuenta $cuentaId: $e\n$stack');
+    }
+  }
+
+  /// Recalcular saldos de todas las cuentas activas
+  Future<void> recalcularTodosSaldos() async {
+    try {
+      final todasCuentas = await (select(cuentas)
+            ..where((c) => c.activa.equals(true)))
+          .get();
+
+      for (final cuenta in todasCuentas) {
+        await recalcularSaldoCuenta(cuenta.id);
+      }
+
+      debugPrint('Saldos recalculados para ${todasCuentas.length} cuentas');
+    } catch (e, stack) {
+      debugPrint('Error al recalcular todos los saldos: $e\n$stack');
+    }
   }
 
   // =============================================
@@ -465,6 +603,150 @@ class AppDatabase extends _$AppDatabase {
         monto: monto,
         notas: notas,
       );
+    });
+  }
+
+  // =============================================
+  // AMORTIZACIÓN DE CUOTAS PARA TRANSFERENCIAS
+  // =============================================
+
+  /// Amortiza cuotas de una cuenta de crédito al recibir un abono/transferencia.
+  ///
+  /// Busca todas las cuotas pendientes de transacciones asociadas a la cuenta de crédito,
+  /// las ordena por fecha de vencimiento (más antiguas primero) y las marca como pagadas
+  /// según el monto disponible.
+  ///
+  /// Este método debe llamarse DENTRO de un bloque transaction() del caller.
+  Future<void> amortizarCuotasPorAbono(int cuentaCreditoId, double montoAbonado) async {
+    // Buscar todas las cuotas pendientes de esta cuenta de crédito
+    // JOIN con transacciones para filtrar por cuentaId
+    final cuotasPendientes = await (select(cuotas).join([
+      innerJoin(transacciones, transacciones.id.equalsExp(cuotas.transaccionId))
+    ])
+          ..where(transacciones.cuentaId.equals(cuentaCreditoId) &
+              cuotas.pagada.equals(false) &
+              transacciones.deletedAt.isNull() &
+              cuotas.deletedAt.isNull())
+          ..orderBy([OrderingTerm.asc(cuotas.fechaVencimiento)]))
+        .get();
+
+    double restante = montoAbonado;
+
+    for (final row in cuotasPendientes) {
+      if (restante <= 0) break;
+
+      final cuota = row.readTable(cuotas);
+
+      if (restante >= cuota.monto) {
+        // Monto suficiente para cubrir la cuota completa
+        await (update(cuotas)..where((c) => c.id.equals(cuota.id))).write(
+          CuotasCompanion(
+            pagada: const Value(true),
+            fechaPago: Value(DateTime.now()),
+            sincronizado: const Value(false),
+            ultimaModificacion: Value(DateTime.now()),
+          ),
+        );
+        restante -= cuota.monto;
+
+        debugPrint('✅ Cuota ${cuota.numeroCuota} amortizada: \$${cuota.monto.toStringAsFixed(2)} | Restante: \$${restante.toStringAsFixed(2)}');
+      } else {
+        // Monto insuficiente para cubrir la cuota completa, detener amortización
+        debugPrint('⚠️ Monto restante (\$${restante.toStringAsFixed(2)}) insuficiente para cuota ${cuota.numeroCuota} (\$${cuota.monto.toStringAsFixed(2)})');
+        break;
+      }
+    }
+
+    if (cuotasPendientes.isEmpty) {
+      debugPrint('ℹ️ No hay cuotas pendientes para amortizar en cuenta $cuentaCreditoId');
+    }
+  }
+
+  /// Revierte la amortización de cuotas al eliminar (soft-delete) una transferencia.
+  ///
+  /// Busca las cuotas que fueron pagadas después de una fecha específica y las revierte
+  /// a estado pendiente.
+  ///
+  /// Este método debe llamarse DENTRO de un bloque transaction() del caller.
+  Future<void> revertirAmortizacionCuotas(int cuentaCreditoId, DateTime fechaTransferencia) async {
+    // Buscar cuotas que fueron pagadas en/después de la fecha de la transferencia
+    final cuotasPagadas = await (select(cuotas).join([
+      innerJoin(transacciones, transacciones.id.equalsExp(cuotas.transaccionId))
+    ])
+          ..where(transacciones.cuentaId.equals(cuentaCreditoId) &
+              cuotas.pagada.equals(true) &
+              cuotas.fechaPago.isBiggerOrEqualValue(fechaTransferencia) &
+              transacciones.deletedAt.isNull() &
+              cuotas.deletedAt.isNull())
+          ..orderBy([OrderingTerm.desc(cuotas.fechaVencimiento)]))
+        .get();
+
+    for (final row in cuotasPagadas) {
+      final cuota = row.readTable(cuotas);
+
+      await (update(cuotas)..where((c) => c.id.equals(cuota.id))).write(
+        CuotasCompanion(
+          pagada: const Value(false),
+          fechaPago: const Value(null),
+          sincronizado: const Value(false),
+          ultimaModificacion: Value(DateTime.now()),
+        ),
+      );
+
+      debugPrint('↩️ Cuota ${cuota.numeroCuota} revertida a pendiente');
+    }
+  }
+
+  /// Elimina (soft-delete) una transacción y revierte cuotas si es transferencia a crédito.
+  ///
+  /// Si la transacción es una transferencia hacia una cuenta de crédito,
+  /// revierte las cuotas amortizadas antes de marcarla como eliminada.
+  Future<void> eliminarTransaccion(int transaccionId) async {
+    await transaction(() async {
+      // Obtener la transacción
+      final tx = await (select(transacciones)
+            ..where((t) => t.id.equals(transaccionId)))
+          .getSingle();
+
+      // Si es transferencia a tarjeta de crédito, revertir cuotas
+      if (tx.tipo == 'transferencia' && tx.cuentaDestinoId != null) {
+        final cuentaDestino = await (select(cuentas)
+              ..where((c) => c.id.equals(tx.cuentaDestinoId!)))
+            .getSingleOrNull();
+
+        if (cuentaDestino?.tipo == 'credito') {
+          await revertirAmortizacionCuotas(
+            cuentaDestino!.id,
+            tx.fecha,
+          );
+        }
+      }
+
+      // Soft-delete: marcar cuotas asociadas como eliminadas (si las tiene)
+      if (tx.formaPago == 'credito' || tx.cantidadCuotas != null) {
+        await (update(cuotas)..where((c) => c.transaccionId.equals(transaccionId)))
+            .write(CuotasCompanion(
+          deletedAt: Value(DateTime.now()),
+          sincronizado: const Value(false),
+          ultimaModificacion: Value(DateTime.now()),
+        ));
+      }
+
+      // Marcar transacción como eliminada
+      await (update(transacciones)..where((t) => t.id.equals(transaccionId)))
+          .write(TransaccionesCompanion(
+        deletedAt: Value(DateTime.now()),
+        sincronizado: const Value(false),
+        ultimaModificacion: Value(DateTime.now()),
+      ));
+
+      // Recalcular saldos de las cuentas afectadas
+      await recalcularSaldoCuenta(tx.cuentaId);
+      if (tx.cuentaDestinoId != null) {
+        await recalcularSaldoCuenta(tx.cuentaDestinoId!);
+      }
+
+      debugPrint('🗑️ Transacción $transaccionId eliminada (soft-delete)');
     });
   }
 }
