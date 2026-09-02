@@ -8,6 +8,7 @@ import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/widgets.dart';
 import 'features/proyeccion/proyeccion_screen.dart';
+import 'features/ingresos_recurrentes/services/automatizacion_ingresos_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +50,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _cargarColorInicial();
     _iniciarNotificaciones();
+    _procesarIngresosRecurrentes();
   }
 
   Future<void> _cargarColorInicial() async {
@@ -64,6 +66,28 @@ class _MyAppState extends State<MyApp> {
       await NotificationService.solicitarPermiso();
     }
     await NotificationService.programarNotificaciones(widget.database);
+  }
+
+  /// Procesa automáticamente los ingresos recurrentes pendientes
+  ///
+  /// Este método se ejecuta al iniciar la app y verifica si hay ingresos
+  /// recurrentes cuya fecha de pago ya pasó pero aún no se han registrado.
+  /// Si encuentra alguno, crea automáticamente la transacción correspondiente.
+  Future<void> _procesarIngresosRecurrentes() async {
+    try {
+      final service = AutomatizacionIngresosService(widget.database);
+
+      // Procesar ingresos pendientes desde el inicio del mes
+      final transaccionesCreadas = await service.procesarIngresosPendientes();
+
+      if (transaccionesCreadas > 0) {
+        debugPrint(
+          '✅ AutomatizaciónIngresos: $transaccionesCreadas transacción(es) creada(s) automáticamente',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error al procesar ingresos recurrentes: $e');
+    }
   }
 
   @override

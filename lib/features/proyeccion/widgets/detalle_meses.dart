@@ -183,45 +183,57 @@ class DetalleMeses extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'SALDO ESTIMADO EN BANCOS',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: scheme.onSurfaceVariant,
+                    Flexible(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SALDO ESTIMADO EN BANCOS',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Al cierre del mes',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          Text(
+                            'Al cierre del mes',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    Row(
-                      children: [
-                        Icon(
-                          mes.enDeficitAcumulado
-                              ? Icons.warning_rounded
-                              : Icons.account_balance_wallet,
-                          color: colorSaldoAcumulado,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          Formatters.monedaConSimbolo(mes.saldoFinalAcumulado),
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      flex: 3,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Icon(
+                            mes.enDeficitAcumulado
+                                ? Icons.warning_rounded
+                                : Icons.account_balance_wallet,
                             color: colorSaldoAcumulado,
+                            size: 20,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              Formatters.monedaConSimbolo(mes.saldoFinalAcumulado),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: colorSaldoAcumulado,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
