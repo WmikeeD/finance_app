@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../models/proyeccion_models.dart';
@@ -26,10 +27,17 @@ class DetalleMeses extends StatelessWidget {
   }
 
   Widget _buildMesCard(BuildContext context, MesProyeccion mes) {
-    final colorIndicador = _getColorIndicador(mes.sobrante, mes.totalIngresos);
+    final scheme = Theme.of(context).colorScheme;
+    final colorFlujoNeto = mes.flujoNetoMes >= 0
+        ? AppTheme.incomeColor(context)
+        : AppTheme.expenseColor(context);
+    final colorSaldoAcumulado = mes.enDeficitAcumulado
+        ? AppTheme.expenseColor(context)
+        : AppTheme.incomeColor(context);
 
     return Card(
       margin: const EdgeInsets.all(AppSpacing.sm),
+      elevation: 0,
       child: InkWell(
         onTap: () => onMesTap(mes),
         child: Padding(
@@ -37,7 +45,7 @@ class DetalleMeses extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header del mes
+              // Header del mes con indicador de déficit
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -52,12 +60,54 @@ class DetalleMeses extends StatelessWidget {
                     const Chip(
                       label: Text('🎉 LIBERACIÓN'),
                       backgroundColor: AppColors.alertCelebrate,
+                    )
+                  else if (mes.enDeficitAcumulado)
+                    Chip(
+                      label: const Text('⚠️ DÉFICIT'),
+                      backgroundColor: AppTheme.expenseColor(context).withValues(alpha: 0.15),
+                      labelStyle: TextStyle(
+                        color: AppTheme.expenseColor(context),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                 ],
               ),
-              
+
+              // ✨ SALDO INICIAL (arrastre del mes anterior)
+              if (mes.saldoInicial != 0) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLowest,
+                    borderRadius: AppRadius.smBR,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Saldo inicial en bancos',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        Formatters.monedaConSimbolo(mes.saldoInicial),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: mes.saldoInicial >= 0
+                              ? AppTheme.incomeColor(context)
+                              : AppTheme.expenseColor(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const Divider(),
-              
+
               // Ingresos
               if (sueldo != null || mes.prestamosCobrar.isNotEmpty) ...[
                 const Text(
@@ -75,7 +125,7 @@ class DetalleMeses extends StatelessWidget {
                 _buildFila('Total ingresos', mes.totalIngresos, isTotal: true),
                 const SizedBox(height: 12),
               ],
-              
+
               // Egresos
               const Text(
                 'EGRESOS',
@@ -85,34 +135,98 @@ class DetalleMeses extends StatelessWidget {
               if (incluirGastosFijos)
                 _buildFila('Gastos fijos', mes.totalGastosFijos),
               _buildFila('Total egresos', mes.totalEgresos, isTotal: true),
-              
+
               const Divider(),
-              
-              // Resultado
+
+              // ✨ FLUJO NETO DEL MES (operativo)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'SOBRANTE',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    'FLUJO DEL MES',
+                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                   ),
                   Row(
                     children: [
-                      Icon(Icons.circle, color: colorIndicador, size: 12),
+                      Icon(
+                        mes.flujoNetoMes >= 0 ? Icons.trending_up : Icons.trending_down,
+                        color: colorFlujoNeto,
+                        size: 18,
+                      ),
                       const SizedBox(width: 4),
                       Text(
-                        Formatters.monedaConSimbolo(mes.sobrante),
+                        Formatters.monedaConSimbolo(mes.flujoNetoMes),
                         style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: colorIndicador,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: colorFlujoNeto,
                         ),
                       ),
                     ],
                   ),
                 ],
               ),
-              
+
+              const SizedBox(height: 8),
+
+              // ✨ SALDO FINAL ACUMULADO (liquidez estimada al cierre)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorSaldoAcumulado.withValues(alpha: 0.1),
+                  borderRadius: AppRadius.mdBR,
+                  border: Border.all(
+                    color: colorSaldoAcumulado.withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SALDO ESTIMADO EN BANCOS',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          'Al cierre del mes',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Icon(
+                          mes.enDeficitAcumulado
+                              ? Icons.warning_rounded
+                              : Icons.account_balance_wallet,
+                          color: colorSaldoAcumulado,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          Formatters.monedaConSimbolo(mes.saldoFinalAcumulado),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: colorSaldoAcumulado,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
               // Desglose de cuotas
               if (mes.cuotas.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -167,47 +281,74 @@ class DetalleMeses extends StatelessWidget {
 
   Widget _buildCuotaTile(CuotaMes cuota) {
     return Builder(
-      builder: (context) => Container(
-      margin: const EdgeInsets.only(top: AppSpacing.xs),
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLowest,
-        borderRadius: AppRadius.smBR,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  cuota.descripcion,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  '${cuota.label} • Vence: ${Formatters.fecha(cuota.fechaVencimiento)}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            Formatters.monedaConSimbolo(cuota.monto),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    ),
-    );
-  }
+      builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
 
-  Color _getColorIndicador(double sobrante, double ingresos) {
-    if (ingresos == 0) return Colors.grey;
-    final porcentaje = sobrante / ingresos;
-    if (porcentaje < 0) return AppColors.alertDanger;
-    if (porcentaje < 0.1) return AppColors.alertWarning;
-    if (porcentaje < 0.3) return AppColors.alertCaution;
-    return AppColors.alertOk;
+        // ✨ Cuotas simuladas: color diferenciado
+        final backgroundColor = cuota.esSimulada
+            ? scheme.secondaryContainer
+            : scheme.surfaceContainerLowest;
+        final textColor = cuota.esSimulada
+            ? scheme.onSecondaryContainer
+            : scheme.onSurface;
+        final borderColor = cuota.esSimulada
+            ? scheme.secondary.withValues(alpha: 0.3)
+            : Colors.transparent;
+
+        return Container(
+          margin: const EdgeInsets.only(top: AppSpacing.xs),
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: AppRadius.smBR,
+            border: cuota.esSimulada
+                ? Border.all(color: borderColor, width: 1.5)
+                : null,
+          ),
+          child: Row(
+            children: [
+              // ✨ Ícono de simulación
+              if (cuota.esSimulada) ...[
+                PhosphorIcon(
+                  PhosphorIconsRegular.sparkle,
+                  size: 18,
+                  color: scheme.secondary,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      cuota.descripcion,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: textColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '${cuota.label} • Vence: ${Formatters.fecha(cuota.fechaVencimiento)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: textColor.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                Formatters.monedaConSimbolo(cuota.monto),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

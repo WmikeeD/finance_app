@@ -16,6 +16,7 @@ import 'tables/deudas.dart';
 import 'tables/pagos_deuda.dart';
 import 'tables/gastos_fijos.dart';
 import 'tables/sync_mappings.dart';
+import 'tables/ingresos_recurrentes.dart';
 
 // Este archivo será generado por build_runner
 part 'database.g.dart';
@@ -32,13 +33,14 @@ part 'database.g.dart';
   PagosDeuda,
   GastosFijos,
   SyncMappings,
+  IngresosRecurrentes,
 ])
 class AppDatabase extends _$AppDatabase {
   // Constructor
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   // Estrategia de migración
   @override
@@ -209,6 +211,11 @@ class AppDatabase extends _$AppDatabase {
                 ),
               );
             }
+          }
+
+          // Migración v13 → v14: tabla de ingresos recurrentes
+          if (from < 14) {
+            await migrator.createTable(ingresosRecurrentes);
           }
         },
       );
