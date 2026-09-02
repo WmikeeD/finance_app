@@ -16,6 +16,7 @@ import '../cuentas/cuentas_screen.dart';
 import '../categorias/categorias_screen.dart';
 import '../personas/personas_screen.dart';
 import '../gastos_fijos/gastos_fijos_screen.dart';
+import '../ingresos_recurrentes/ingresos_recurrentes_screen.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
   final AppDatabase database;
@@ -294,6 +295,14 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             subtitle: const Text('Administra tus gastos recurrentes'),
             trailing: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16),
             onTap: () => _navigateToGastosFijos(),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: PhosphorIcon(PhosphorIconsRegular.arrowDownLeft),
+            title: const Text('Ingresos Recurrentes'),
+            subtitle: const Text('Gestiona sueldos y otros ingresos fijos'),
+            trailing: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16),
+            onTap: () => _navigateToIngresosRecurrentes(),
           ),
         ],
       ),
@@ -1073,6 +1082,18 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       builder: (_) => ResponsiveHelper.wrapModal(
         context: context,
         child: GastosFijosScreen(database: widget.database),
+      ),
+    );
+  }
+
+  void _navigateToIngresosRecurrentes() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ResponsiveHelper.wrapModal(
+        context: context,
+        child: IngresosRecurrentesScreen(database: widget.database),
       ),
     );
   }

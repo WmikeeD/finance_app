@@ -7,7 +7,7 @@ class HeaderControls extends StatelessWidget {
   final int? cuentaId;
   final int mesesAVer;
   final bool incluirGastosFijos;
-  final double? sueldo;
+  final bool incluirIngresosRecurrentes;
   final bool incluirPrestamos;
   final Set<int> prestamosSeleccionados;
 
@@ -15,7 +15,7 @@ class HeaderControls extends StatelessWidget {
   final Function(int?) onCuentaChanged;
   final Function(int) onMesesChanged;
   final ValueChanged<bool> onGastosFijosChanged;
-  final Function(double?) onSueldoChanged;
+  final ValueChanged<bool> onIngresosRecurrentesChanged;
   final Function((bool, Set<int>)) onPrestamosChanged;
 
   final AppDatabase database;
@@ -26,14 +26,14 @@ class HeaderControls extends StatelessWidget {
     required this.cuentaId,
     required this.mesesAVer,
     required this.incluirGastosFijos,
-    required this.sueldo,
+    required this.incluirIngresosRecurrentes,
     required this.incluirPrestamos,
     required this.prestamosSeleccionados,
     required this.onMesInicioChanged,
     required this.onCuentaChanged,
     required this.onMesesChanged,
     required this.onGastosFijosChanged,
-    required this.onSueldoChanged,
+    required this.onIngresosRecurrentesChanged,
     required this.onPrestamosChanged,
     required this.database,
   });
@@ -152,34 +152,56 @@ class HeaderControls extends StatelessWidget {
                   },
                 ),
 
-                // Sueldo (input manual)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Checkbox(
-                      value: sueldo != null,
-                      onChanged: (v) =>
-                          onSueldoChanged((v ?? false) ? 0 : null),
-                    ),
-                    const Text('Sueldo'),
-                    if (sueldo != null) ...[
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 110,
-                        child: TextField(
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            prefixText: '\$ ',
-                            isDense: true,
-                            hintText: '0',
-                          ),
-                          onChanged: (v) =>
-                              onSueldoChanged(double.tryParse(v)),
+                // Ingresos recurrentes (auto-carga desde DB)
+                StreamBuilder<List<IngresoRecurrente>>(
+                  stream: (database.select(database.ingresosRecurrentes)
+                        ..where((i) => i.activo.equals(true))
+                        ..where((i) => i.deletedAt.isNull()))
+                      .watch(),
+                  builder: (context, snapshot) {
+                    final ingresos = snapshot.data ?? [];
+                    final total = ingresos.fold<double>(0, (s, i) => s + i.monto);
+                    final hayIngresos = ingresos.isNotEmpty;
+
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Checkbox(
+                          value: incluirIngresosRecurrentes && hayIngresos,
+                          onChanged: hayIngresos
+                              ? (v) => onIngresosRecurrentesChanged(v ?? false)
+                              : null,
                         ),
-                      ),
-                    ],
-                    const SizedBox(width: 16),
-                  ],
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Ingresos recurrentes',
+                              style: TextStyle(
+                                color: hayIngresos ? null : Colors.grey,
+                              ),
+                            ),
+                            if (hayIngresos)
+                              Text(
+                                Formatters.monedaConSimbolo(total),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                              )
+                            else
+                              const Text(
+                                'Sin registros',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(width: 16),
+                      ],
+                    );
+                  },
                 ),
 
                 // Préstamos a cobrar

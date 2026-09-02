@@ -146,6 +146,7 @@ class ProyeccionRepository {
     required int mesesAVer,
     int? cuentaId,
     bool incluirGastosFijos = false,
+    bool incluirIngresosRecurrentes = false,
     bool incluirPrestamos = false,
     Set<int> prestamosSeleccionados = const {},
     CompraSimulada? compraSimulada,
@@ -157,6 +158,7 @@ class ProyeccionRepository {
         mesesAVer: mesesAVer,
         cuentaId: cuentaId,
         incluirGastosFijos: incluirGastosFijos,
+        incluirIngresosRecurrentes: incluirIngresosRecurrentes,
         incluirPrestamos: incluirPrestamos,
         prestamosSeleccionados: prestamosSeleccionados,
         compraSimulada: compraSimulada,
@@ -177,6 +179,7 @@ class ProyeccionRepository {
     required int mesesAVer,
     int? cuentaId,
     bool incluirGastosFijos = false,
+    bool incluirIngresosRecurrentes = false,
     bool incluirPrestamos = false,
     Set<int> prestamosSeleccionados = const {},
     CompraSimulada? compraSimulada,
@@ -186,6 +189,7 @@ class ProyeccionRepository {
       mesesAVer: mesesAVer,
       cuentaId: cuentaId,
       incluirGastosFijos: incluirGastosFijos,
+      incluirIngresosRecurrentes: incluirIngresosRecurrentes,
       incluirPrestamos: incluirPrestamos,
       prestamosSeleccionados: prestamosSeleccionados,
       compraSimulada: compraSimulada,
@@ -201,6 +205,7 @@ class ProyeccionRepository {
     required int mesesAVer,
     int? cuentaId,
     bool incluirGastosFijos = false,
+    bool incluirIngresosRecurrentes = false,
     bool incluirPrestamos = false,
     Set<int> prestamosSeleccionados = const {},
     CompraSimulada? compraSimulada,
@@ -320,7 +325,10 @@ class ProyeccionRepository {
       final totalPrestamos = prestamosDelMes.fold<double>(0, (s, p) => s + p.monto);
 
       // ✨ Ingresos recurrentes vigentes en este mes (con validación de fechas)
-      final totalIngresosRecurrentes = await calcularTotalIngresosRecurrentes(mes);
+      double totalIngresosRecurrentes = 0.0;
+      if (incluirIngresosRecurrentes) {
+        totalIngresosRecurrentes = await calcularTotalIngresosRecurrentes(mes);
+      }
       final totalIngresos = totalIngresosRecurrentes + totalPrestamos;
       // Total egresos incluye cuotas reales + simuladas + gastos fijos
       final totalEgresos = totalCuotas + gastosFijosMensual;
@@ -396,6 +404,7 @@ class ProyeccionRepository {
     required int mesesAVer,
     int? cuentaId,
     bool incluirGastosFijos = false,
+    bool incluirIngresosRecurrentes = false,
     bool incluirPrestamos = false,
     Set<int> prestamosSeleccionados = const {},
   }) async {
@@ -405,6 +414,7 @@ class ProyeccionRepository {
       mesesAVer: mesesAVer,
       cuentaId: cuentaId,
       incluirGastosFijos: incluirGastosFijos,
+      incluirIngresosRecurrentes: incluirIngresosRecurrentes,
       incluirPrestamos: incluirPrestamos,
       prestamosSeleccionados: prestamosSeleccionados,
       compraSimulada: null,
@@ -416,6 +426,7 @@ class ProyeccionRepository {
       mesesAVer: mesesAVer,
       cuentaId: cuentaId,
       incluirGastosFijos: incluirGastosFijos,
+      incluirIngresosRecurrentes: incluirIngresosRecurrentes,
       incluirPrestamos: incluirPrestamos,
       prestamosSeleccionados: prestamosSeleccionados,
       compraSimulada: compra,

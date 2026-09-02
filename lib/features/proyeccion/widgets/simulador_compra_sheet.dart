@@ -89,22 +89,28 @@ class _SimuladorCompraSheetState extends State<SimuladorCompraSheet> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return ResponsiveHelper.wrapModal(
       context: context,
-      child: Container(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 550,
+          maxHeight: screenHeight * 0.8,
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+        child: Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   // Header
                   Row(
                     children: [
@@ -319,6 +325,7 @@ class _SimuladorCompraSheetState extends State<SimuladorCompraSheet> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

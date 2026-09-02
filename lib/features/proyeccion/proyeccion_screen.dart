@@ -32,7 +32,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
   int? _cuentaId;
   int _mesesAVer = 3;
   bool _incluirGastosFijos = false;
-  double? _sueldoTemporal; // Temporal para el input, se guarda en DB al cambiar
+  bool _incluirIngresosRecurrentes = false;
   bool _incluirPrestamos = false;
   Set<int> _prestamosSeleccionados = {};
 
@@ -56,17 +56,6 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
     _mesInicio = DateTime(DateTime.now().year, DateTime.now().month, 1);
     _scrollController.addListener(_onScroll);
     _cargarDatos();
-    _cargarSueldoDesdeDB();
-  }
-
-  /// Cargar el sueldo (ingreso recurrente) desde la DB al iniciar
-  Future<void> _cargarSueldoDesdeDB() async {
-    final ingresos = await _repository.getIngresosRecurrentesActivos();
-    if (ingresos.isNotEmpty && mounted) {
-      setState(() {
-        _sueldoTemporal = ingresos.first.monto;
-      });
-    }
   }
 
   @override
@@ -90,6 +79,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
         mesesAVer: _mesesAVer,
         cuentaId: _cuentaId,
         incluirGastosFijos: _incluirGastosFijos,
+        incluirIngresosRecurrentes: _incluirIngresosRecurrentes,
         incluirPrestamos: _incluirPrestamos,
         prestamosSeleccionados: _prestamosSeleccionados,
         compraSimulada: _compraSimulada,
@@ -104,6 +94,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
           mesesAVer: _mesesAVer,
           cuentaId: _cuentaId,
           incluirGastosFijos: _incluirGastosFijos,
+          incluirIngresosRecurrentes: _incluirIngresosRecurrentes,
           incluirPrestamos: _incluirPrestamos,
           prestamosSeleccionados: _prestamosSeleccionados,
         );
@@ -142,54 +133,6 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
         _impactoSimulacion = null;
       });
       _cargarDatos();
-    }
-  }
-
-  /// Guardar sueldo en la base de datos como ingreso recurrente
-  Future<void> _guardarSueldoEnDB(double? sueldo) async {
-    if (sueldo == null || sueldo <= 0) {
-      // Si se elimina el sueldo, eliminar todos los ingresos recurrentes activos
-      final ingresos = await _repository.getIngresosRecurrentesActivos();
-      for (final ingreso in ingresos) {
-        await _repository.eliminarIngresoRecurrente(ingreso.id);
-      }
-      return;
-    }
-
-    // Verificar si ya existe un ingreso recurrente activo
-    final ingresosExistentes = await _repository.getIngresosRecurrentesActivos();
-
-    if (ingresosExistentes.isEmpty) {
-      // Crear nuevo ingreso recurrente
-      // Por defecto, usar la primera cuenta líquida disponible o la primera cuenta
-      final cuentas = await (widget.database.select(widget.database.cuentas)
-            ..where((c) => c.activa.equals(true)))
-          .get();
-      final cuentaDefecto = cuentas.firstWhere(
-        (c) => c.tipo == 'efectivo' || c.tipo == 'debito',
-        orElse: () => cuentas.first,
-      );
-
-      await _repository.guardarIngresoRecurrente(
-        descripcion: 'Sueldo Principal',
-        monto: sueldo,
-        cuentaId: cuentaDefecto.id,
-        frecuencia: 'ultimo_dia_habil',
-        activo: true,
-      );
-    } else {
-      // Actualizar el monto del ingreso existente
-      final ingresoExistente = ingresosExistentes.first;
-      await _repository.guardarIngresoRecurrente(
-        id: ingresoExistente.id,
-        descripcion: ingresoExistente.descripcion,
-        monto: sueldo,
-        cuentaId: ingresoExistente.cuentaId,
-        frecuencia: ingresoExistente.frecuencia,
-        diaMes: ingresoExistente.diaMes,
-        activo: true,
-        fechaInicio: ingresoExistente.fechaInicio,
-      );
     }
   }
 
@@ -256,7 +199,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
                       cuentaId: _cuentaId,
                       mesesAVer: _mesesAVer,
                       incluirGastosFijos: _incluirGastosFijos,
-                      sueldo: _sueldoTemporal,
+                      incluirIngresosRecurrentes: _incluirIngresosRecurrentes,
                       incluirPrestamos: _incluirPrestamos,
                       prestamosSeleccionados: _prestamosSeleccionados,
                       database: widget.database,
@@ -277,9 +220,8 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
                         setState(() => _incluirGastosFijos = v);
                         _cargarDatos();
                       },
-                      onSueldoChanged: (v) async {
-                        setState(() => _sueldoTemporal = v);
-                        await _guardarSueldoEnDB(v);
+                      onIngresosRecurrentesChanged: (v) {
+                        setState(() => _incluirIngresosRecurrentes = v);
                         _cargarDatos();
                       },
                       onPrestamosChanged: (v) {
@@ -341,7 +283,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
               flex: _mostrarDetalle ? 1 : 2,
               child: GraficoBarras(
                 meses: _mesesProyeccion,
-                sueldo: _sueldoTemporal,
+                sueldo: null, // Ya no se usa sueldo temporal
                 incluirGastosFijos: _incluirGastosFijos,
                 onMesSeleccionado: (_) {},
               ),
@@ -354,7 +296,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
               child: DetalleMeses(
                 meses: _mesesProyeccion,
                 incluirGastosFijos: _incluirGastosFijos,
-                sueldo: _sueldoTemporal,
+                sueldo: null, // Ya no se usa sueldo temporal
                 onMesTap: (_) {},
               ),
             ),
@@ -371,7 +313,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
             flex: _mostrarDetalle ? 1 : 2,
             child: GraficoBarras(
               meses: _mesesProyeccion,
-              sueldo: _sueldoTemporal,
+              sueldo: null, // Ya no se usa sueldo temporal
               incluirGastosFijos: _incluirGastosFijos,
               onMesSeleccionado: (_) {},
             ),
@@ -388,7 +330,7 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
             child: DetalleMeses(
               meses: _mesesProyeccion,
               incluirGastosFijos: _incluirGastosFijos,
-              sueldo: _sueldoTemporal,
+              sueldo: null, // Ya no se usa sueldo temporal
               onMesTap: (_) {},
             ),
           ),
