@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../core/utils/responsive.dart';
 import '../models/simulacion_models.dart';
 
 /// Modal para configurar una compra simulada en cuotas
@@ -89,28 +88,30 @@ class _SimuladorCompraSheetState extends State<SimuladorCompraSheet> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final screenHeight = MediaQuery.of(context).size.height;
 
-    return ResponsiveHelper.wrapModal(
-      context: context,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 550,
-          maxHeight: screenHeight * 0.8,
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainer,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.xxl),
         ),
-        child: Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+        border: Border.all(
+          color: scheme.outlineVariant,
+          width: 0.5,
+        ),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                   // Header
                   Row(
                     children: [
@@ -325,8 +326,6 @@ class _SimuladorCompraSheetState extends State<SimuladorCompraSheet> {
             ),
           ),
         ),
-      ),
-      ),
     );
   }
 

@@ -147,12 +147,11 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, flujoSnapshot) {
             final flujoDelMes = flujoSnapshot.data ?? 0.0;
 
-            // Color dinámico según balance (sistema de zonas)
-            final colorZona = AppTheme.calcularColorDinamico(
-              balanceTotal,
-              100000, // minimo
-              5000000, // maximo
-            );
+            // Usar el color primario del tema actual
+            // (que ya refleja el Color Principal manual o Color Dinámico según configuración)
+            final colorZona = Theme.of(context).colorScheme.primary;
+
+            // Nombre de zona basado en balance para contexto
             final nombreZona = AppTheme.nombreZonaDinamica(
               balanceTotal,
               100000,

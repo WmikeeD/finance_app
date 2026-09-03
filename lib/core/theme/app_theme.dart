@@ -90,38 +90,32 @@ abstract final class AppTheme {
   // import 'package:google_fonts/google_fonts.dart';
   // Reemplaza TextTheme con: GoogleFonts.dmSansTextTheme(...)
 
-  static ThemeData dark() {
-    const scheme = ColorScheme(
+  static ThemeData dark({Color? primarySeedColor}) {
+    final seedColor = primarySeedColor ?? AppColors.primary;
+
+    // Generar scheme base desde el seedColor
+    final baseScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
       brightness: Brightness.dark,
-      primary: AppColors.primary,
-      onPrimary: AppColors.onPrimary,
-      primaryContainer: AppColors.primaryContainer,
-      onPrimaryContainer: AppColors.onPrimaryContainer,
+    );
+
+    // Customizar con nuestros colores semánticos y superficies
+    final scheme = baseScheme.copyWith(
+      // Conservar colores semánticos financieros
       secondary: AppColors.credit,
-      onSecondary: Color(0xFF1A003F),
-      secondaryContainer: Color(0xFF2D1A5E),
-      onSecondaryContainer: Color(0xFFCFBEFF),
       tertiary: AppColors.income,
-      onTertiary: Color(0xFF003020),
-      tertiaryContainer: Color(0xFF00422F),
-      onTertiaryContainer: Color(0xFFAAF0CB),
       error: AppColors.expense,
-      onError: Color(0xFF3A0000),
-      errorContainer: Color(0xFF5A1A1A),
-      onErrorContainer: Color(0xFFFFB3B3),
-      surface: AppColors.darkSurface, // Negro puro #000000
-      onSurface: AppColors.darkOnSurface, // Blanco #FFFFFF
+      // Superficies personalizadas (negro puro)
+      surface: AppColors.darkSurface,
+      onSurface: AppColors.darkOnSurface,
       onSurfaceVariant: AppColors.darkOnSurfaceVariant,
-      surfaceContainerLowest: Color(0xFF000000), // Negro puro
-      surfaceContainerLow: Color(0xFF0A0A0A),
-      surfaceContainer: AppColors.darkSurfaceContainer, // #0D0D0D
-      surfaceContainerHigh: AppColors.darkSurfaceContainerHigh, // #1A1A1A
+      surfaceContainerLowest: const Color(0xFF000000),
+      surfaceContainerLow: const Color(0xFF0A0A0A),
+      surfaceContainer: AppColors.darkSurfaceContainer,
+      surfaceContainerHigh: AppColors.darkSurfaceContainerHigh,
       surfaceContainerHighest: AppColors.darkSurfaceContainerHighest,
       outline: AppColors.darkOutline,
       outlineVariant: AppColors.darkOutlineVariant,
-      inverseSurface: AppColors.darkOnSurface,
-      onInverseSurface: AppColors.darkSurface,
-      inversePrimary: AppColors.primaryDark,
       shadow: Colors.black,
       scrim: Colors.black54,
     );
@@ -129,38 +123,32 @@ abstract final class AppTheme {
     return _buildTheme(scheme);
   }
 
-  static ThemeData light() {
-    const scheme = ColorScheme(
+  static ThemeData light({Color? primarySeedColor}) {
+    final seedColor = primarySeedColor ?? AppColors.primaryDark;
+
+    // Generar scheme base desde el seedColor
+    final baseScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
       brightness: Brightness.light,
-      primary: AppColors.primaryDark,
-      onPrimary: Colors.white,
-      primaryContainer: Color(0xFFB3F5E3),
-      onPrimaryContainer: AppColors.onPrimary,
-      secondary: Color(0xFF6B4ECC),
-      onSecondary: Colors.white,
-      secondaryContainer: Color(0xFFE8DFFF),
-      onSecondaryContainer: Color(0xFF1A003F),
-      tertiary: Color(0xFF2E7D5A),
-      onTertiary: Colors.white,
-      tertiaryContainer: Color(0xFFA8F0CB),
-      onTertiaryContainer: Color(0xFF003020),
-      error: Color(0xFFD32F2F),
-      onError: Colors.white,
-      errorContainer: Color(0xFFFFDAD6),
-      onErrorContainer: Color(0xFF3A0000),
+    );
+
+    // Customizar con nuestros colores semánticos y superficies
+    final scheme = baseScheme.copyWith(
+      // Conservar colores semánticos financieros
+      secondary: const Color(0xFF6B4ECC),
+      tertiary: const Color(0xFF2E7D5A),
+      error: const Color(0xFFD32F2F),
+      // Superficies personalizadas
       surface: AppColors.lightSurface,
       onSurface: AppColors.lightOnSurface,
       onSurfaceVariant: AppColors.lightOnSurfaceVariant,
       surfaceContainerLowest: Colors.white,
-      surfaceContainerLow: Color(0xFFF0F8F5),
+      surfaceContainerLow: const Color(0xFFF0F8F5),
       surfaceContainer: AppColors.lightSurfaceContainer,
       surfaceContainerHigh: AppColors.lightSurfaceContainerHigh,
-      surfaceContainerHighest: Color(0xFFE5F0EC),
+      surfaceContainerHighest: const Color(0xFFE5F0EC),
       outline: AppColors.lightOutline,
       outlineVariant: AppColors.lightOutlineVariant,
-      inverseSurface: AppColors.lightOnSurface,
-      onInverseSurface: AppColors.lightSurface,
-      inversePrimary: AppColors.primary,
       shadow: Colors.black12,
       scrim: Colors.black26,
     );

@@ -107,15 +107,47 @@ class _MyAppState extends State<MyApp> {
                 ? ThemeMode.dark
                 : ThemeMode.light;
 
-        // Color dinámico deshabilitado en M3 (el tema es estático)
+        // Sistema de color reactivo y dinámico
+        return StreamBuilder<List<Cuenta>>(
+          stream: widget.database.select(widget.database.cuentas).watch(),
+          builder: (context, cuentasSnap) {
+            Color? primarySeedColor;
 
-        // Color estático ya no soportado en M3 - el color es fijo
-        return _buildApp(themeMode);
+            // Prioridad 1: Color Dinámico (si está activado)
+            if (perfil?.colorDinamico == true) {
+              final cuentas = cuentasSnap.data ?? [];
+              final balance = cuentas
+                  .where((c) => c.tipo == 'efectivo' || c.tipo == 'debito')
+                  .fold<double>(0, (sum, cuenta) => sum + cuenta.saldo);
+
+              primarySeedColor = AppTheme.calcularColorDinamico(
+                balance,
+                perfil?.balanceMinimo ?? 100000,
+                perfil?.balanceMaximo ?? 50000000,
+              );
+            }
+            // Prioridad 2: Color Principal manual
+            else if (perfil?.colorPrimario != null) {
+              final colorHex = perfil!.colorPrimario;
+              try {
+                primarySeedColor = Color(
+                  int.parse(colorHex.replaceFirst('#', '0xFF')),
+                );
+              } catch (e) {
+                // Si el parsing falla, usar color por defecto
+                primarySeedColor = null;
+              }
+            }
+            // Prioridad 3: Color por defecto (null = AppTheme usa su default)
+
+            return _buildApp(themeMode, primarySeedColor);
+          },
+        );
       },
     );
   }
 
-  Widget _buildApp(ThemeMode themeMode) {
+  Widget _buildApp(ThemeMode themeMode, Color? primarySeedColor) {
     return MaterialApp(
       title: 'Finance App',
       debugShowCheckedModeBanner: false,
@@ -129,8 +161,8 @@ class _MyAppState extends State<MyApp> {
         Locale('en', 'US'),
       ],
       locale: const Locale('es', 'ES'),
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.light(primarySeedColor: primarySeedColor),
+      darkTheme: AppTheme.dark(primarySeedColor: primarySeedColor),
       themeMode: themeMode,
       routes: {
         '/proyeccion': (context) =>

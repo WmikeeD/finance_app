@@ -117,9 +117,14 @@ class _ProyeccionScreenState extends State<ProyeccionScreen> {
     final result = await showModalBottomSheet<CompraSimulada?>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => SimuladorCompraSheet(
-        compraActual: _compraSimulada,
-        mesInicioProyeccion: _mesInicio,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ResponsiveHelper.wrapModal(
+        context: context,
+        child: SimuladorCompraSheet(
+          compraActual: _compraSimulada,
+          mesInicioProyeccion: _mesInicio,
+        ),
       ),
     );
 

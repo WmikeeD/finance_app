@@ -357,7 +357,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
 
   Widget _buildPreferenciasSection(Perfil? perfil) {
     final colorActual = perfil?.colorPrimario ?? '#6C63FF';
-    
+    final colorDinamicoActivo = perfil?.colorDinamico ?? false;
+
     return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,19 +381,31 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             ),
           ),
           const Divider(height: 1),
-          ListTile(
-            leading: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Color(int.parse(colorActual.replaceFirst('#', '0xFF'))),
-                shape: BoxShape.circle,
+          Opacity(
+            opacity: colorDinamicoActivo ? 0.5 : 1.0,
+            child: ListTile(
+              enabled: !colorDinamicoActivo,
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Color(int.parse(colorActual.replaceFirst('#', '0xFF'))),
+                  shape: BoxShape.circle,
+                ),
               ),
+              title: const Text('Color Principal'),
+              subtitle: colorDinamicoActivo
+                  ? const Text(
+                      'Deshabilitado: El color dinámico está activo y se ajusta según tu balance. '
+                      'Desactiva el color dinámico para elegir un color fijo.',
+                      style: TextStyle(fontSize: 11),
+                    )
+                  : Text(colorActual.toUpperCase()),
+              trailing: colorDinamicoActivo
+                  ? null
+                  : PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16),
+              onTap: colorDinamicoActivo ? null : () => _showColorPickerDialog(perfil),
             ),
-            title: const Text('Color Principal'),
-            subtitle: Text(colorActual.toUpperCase()),
-            trailing: PhosphorIcon(PhosphorIconsRegular.caretRight, size: 16),
-            onTap: () => _showColorPickerDialog(perfil),
           ),
           const Divider(height: 1),
           _buildTemaToggle(perfil),
