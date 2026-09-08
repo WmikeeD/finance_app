@@ -142,6 +142,21 @@ class _CrearTransaccionSheetState extends State<CrearTransaccionSheet> {
       return;
     }
 
+    // Validación de techo de pago para transferencias a tarjetas de crédito
+    if (_tipo == 'transferencia' && _cuentaDestino?.tipo == 'credito') {
+      final deudaReal = await widget.database.calcularDeudaRealTarjeta(_cuentaDestino!.id);
+
+      if (deudaReal <= 0) {
+        _mostrarError('La tarjeta no tiene deuda pendiente');
+        return;
+      }
+
+      if (monto > deudaReal) {
+        _mostrarError('Excede la deuda (\$${Formatters.moneda(deudaReal)})');
+        return;
+      }
+    }
+
     int? cantidadCuotas;
     double? valorCuotaValue;
     double? montoConInteres;
@@ -480,10 +495,15 @@ class _CrearTransaccionSheetState extends State<CrearTransaccionSheet> {
     final month = fechaCompra.month;
     final day = fechaCompra.day;
 
-    if (day <= diaCierre) {
-      return DateTime(year, month + 1, diaPago);
-    } else {
+    // REGLA DEL DÍA BORDE (FASE 1 - CICLO BANCARIO):
+    // - Si compra >= diaCierre: entra al ciclo siguiente → vence en 2 meses
+    // - Si compra < diaCierre: entra al ciclo actual → vence en 1 mes
+    if (day >= diaCierre) {
+      // Compra en o después del cierre → ciclo siguiente
       return DateTime(year, month + 2, diaPago);
+    } else {
+      // Compra antes del cierre → ciclo actual
+      return DateTime(year, month + 1, diaPago);
     }
   }
 
@@ -645,19 +665,8 @@ class _CrearTransaccionSheetState extends State<CrearTransaccionSheet> {
                   }
 
                   // Validación de techo de pago para transferencias a tarjetas de crédito
-                  if (_tipo == 'transferencia' && _cuentaDestino?.tipo == 'credito') {
-                    final deudaTotal = _cuentaDestino!.saldo < 0
-                        ? -_cuentaDestino!.saldo
-                        : 0.0;
-
-                    if (deudaTotal <= 0) {
-                      return 'La tarjeta no tiene deuda pendiente';
-                    }
-
-                    if (monto > deudaTotal) {
-                      return 'Excede la deuda (\$${Formatters.moneda(deudaTotal)})';
-                    }
-                  }
+                  // NOTA: Esta validación es asíncrona pero FormField.validator debe ser síncrona.
+                  // La validación real se hace en _guardarTransaccion(), aquí solo validamos formato.
 
                   return null;
                 },
@@ -740,13 +749,13 @@ class _CrearTransaccionSheetState extends State<CrearTransaccionSheet> {
 
                 // Banner informativo de deuda (solo si destino es crédito)
                 if (_cuentaDestino?.tipo == 'credito') ...[
-                  Builder(builder: (context) {
-                    final deudaTotal = _cuentaDestino!.saldo < 0
-                        ? -_cuentaDestino!.saldo
-                        : 0.0;
-                    final creditoDisponible = (_cuentaDestino!.limiteCredito ?? 0) + _cuentaDestino!.saldo;
+                  FutureBuilder<double>(
+                    future: widget.database.calcularDeudaRealTarjeta(_cuentaDestino!.id),
+                    builder: (context, snapshot) {
+                      final deudaTotal = snapshot.data ?? 0.0;
+                      final creditoDisponible = (_cuentaDestino!.limiteCredito ?? 0) - deudaTotal;
 
-                    return Container(
+                      return Container(
                       padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -835,7 +844,8 @@ class _CrearTransaccionSheetState extends State<CrearTransaccionSheet> {
                         ],
                       ),
                     );
-                  }),
+                    },
+                  ),
                   const SizedBox(height: AppSpacing.md),
                 ],
               ],

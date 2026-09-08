@@ -778,10 +778,15 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
     final month = fechaCompra.month;
     final day = fechaCompra.day;
 
-    if (day <= diaCierre) {
-      return DateTime(year, month + 1, diaPago);
-    } else {
+    // REGLA DEL DÍA BORDE (FASE 1 - CICLO BANCARIO):
+    // - Si compra >= diaCierre: entra al ciclo siguiente → vence en 2 meses
+    // - Si compra < diaCierre: entra al ciclo actual → vence en 1 mes
+    if (day >= diaCierre) {
+      // Compra en o después del cierre → ciclo siguiente
       return DateTime(year, month + 2, diaPago);
+    } else {
+      // Compra antes del cierre → ciclo actual
+      return DateTime(year, month + 1, diaPago);
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:intl/intl.dart';
 import '../../core/database/database.dart';
 import '../../core/services/exportacion_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -9,6 +10,8 @@ import '../../core/utils/responsive.dart';
 import '../../core/widgets/widgets.dart';
 import 'data/reportes_repository.dart';
 import 'models/reporte_models.dart';
+
+enum ReportesTab { flujoCaja, creditoCuotas, saludFinanciera }
 
 class ReportesScreen extends StatefulWidget {
   final AppDatabase database;
@@ -24,6 +27,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
   late ReportesRepository _repository;
   int? _sectorTocado;
   String? _filtroGastosCategoria; // 'debito', 'credito', o null (consolidado)
+  ReportesTab _tabSeleccionada = ReportesTab.flujoCaja;
 
   @override
   void initState() {
@@ -44,12 +48,14 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   void _mesSiguiente() {
     final ahora = DateTime.now();
+    final mesActual = DateTime(ahora.year, ahora.month, 1);
     final siguiente =
         DateTime(_mesSeleccionado.year, _mesSeleccionado.month + 1, 1);
-    // Permitir avanzar hasta 12 meses en el futuro para proyección de cuotas
-    final limitesFuturo = DateTime(ahora.year, ahora.month + 12, 1);
-    if (siguiente.isBefore(limitesFuturo) ||
-        siguiente.month == limitesFuturo.month && siguiente.year == limitesFuturo.year) {
+
+    // Reportes solo muestra datos históricos o del mes en curso
+    // No permitir avanzar a meses futuros
+    if (siguiente.isBefore(mesActual) ||
+        (siguiente.year == mesActual.year && siguiente.month == mesActual.month)) {
       setState(() => _mesSeleccionado = siguiente);
     }
   }
@@ -80,13 +86,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
         children: [
           _buildSelectorMes(),
           const SizedBox(height: AppSpacing.base),
-          _buildResumenMes(),
+          _buildTabSelector(),
           const SizedBox(height: AppSpacing.lg),
-          _buildInfoCreditoCuotas(),
-          const SizedBox(height: AppSpacing.lg),
-          _buildGastosPorCategoria(),
-          const SizedBox(height: AppSpacing.lg),
-          _buildEvolucionHistorica(),
+          _buildContenidoSegunTab(),
         ],
       ),
     );
@@ -97,10 +99,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
   Widget _buildSelectorMes() {
     final nombre = _nombreMesAnio(_mesSeleccionado);
     final ahora = DateTime.now();
-    final limitesFuturo = DateTime(ahora.year, ahora.month + 12, 1);
-    final enLimiteFuturo = _mesSeleccionado.year == limitesFuturo.year &&
-        _mesSeleccionado.month == limitesFuturo.month;
-    final esFuturo = _mesSeleccionado.isAfter(DateTime(ahora.year, ahora.month, 1));
+    final mesActual = DateTime(ahora.year, ahora.month, 1);
+
+    // Determina si estamos en el mes actual (límite de navegación hacia adelante)
+    final enMesActual = _mesSeleccionado.year == mesActual.year &&
+        _mesSeleccionado.month == mesActual.month;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -109,28 +112,550 @@ class _ReportesScreenState extends State<ReportesScreen> {
           icon: PhosphorIcon(PhosphorIconsRegular.caretLeft),
           onPressed: _mesAnterior,
         ),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              nombre,
-              style: Theme.of(context).textTheme.titleLarge,
+        Text(
+          nombre,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        Opacity(
+          opacity: enMesActual ? 0.3 : 1.0,
+          child: IconButton(
+            icon: PhosphorIcon(PhosphorIconsRegular.caretRight),
+            onPressed: enMesActual ? null : _mesSiguiente,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Selector de tabs ──────────────────────────────────────────────────────
+
+  Widget _buildTabSelector() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Ancho disponible para el SegmentedButton
+        final availableWidth = constraints.maxWidth;
+
+        // Adaptación dinámica de etiquetas según ancho real
+        final textoFlujoCaja = availableWidth >= 560 ? 'Flujo de Caja' : 'Flujo';
+        final textoCredito = availableWidth >= 560 ? 'Crédito y Cuotas' : 'Crédito';
+        final textoSalud = availableWidth >= 560 ? 'Salud Financiera' : 'Salud';
+
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 680,
+              ),
+              child: SegmentedButton<ReportesTab>(
+                segments: [
+                  ButtonSegment<ReportesTab>(
+                    value: ReportesTab.flujoCaja,
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        textoFlujoCaja,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ),
+                    icon: PhosphorIcon(PhosphorIconsRegular.arrowsLeftRight, size: 16),
+                  ),
+                  ButtonSegment<ReportesTab>(
+                    value: ReportesTab.creditoCuotas,
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        textoCredito,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ),
+                    icon: PhosphorIcon(PhosphorIconsRegular.creditCard, size: 16),
+                  ),
+                  ButtonSegment<ReportesTab>(
+                    value: ReportesTab.saludFinanciera,
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        textoSalud,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ),
+                    icon: PhosphorIcon(PhosphorIconsRegular.chartDonut, size: 16),
+                  ),
+                ],
+                selected: {_tabSeleccionada},
+                onSelectionChanged: (Set<ReportesTab> newSelection) {
+                  setState(() {
+                    _tabSeleccionada = newSelection.first;
+                  });
+                },
+                showSelectedIcon: false,
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
             ),
-            if (esFuturo)
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Contenido según tab seleccionada ──────────────────────────────────────
+
+  Widget _buildContenidoSegunTab() {
+    switch (_tabSeleccionada) {
+      case ReportesTab.flujoCaja:
+        return _buildVistaFlujoCaja();
+      case ReportesTab.creditoCuotas:
+        return _buildVistaCreditoCuotas();
+      case ReportesTab.saludFinanciera:
+        return _buildVistaSaludFinanciera();
+    }
+  }
+
+  // ── VISTA 1: Flujo de Caja ────────────────────────────────────────────────
+
+  Widget _buildVistaFlujoCaja() {
+    return Column(
+      children: [
+        _buildResumenMes(),
+        const SizedBox(height: AppSpacing.lg),
+        _buildEvolucionHistorica(),
+        const SizedBox(height: AppSpacing.lg),
+        _buildGastosPorCategoria(),
+      ],
+    );
+  }
+
+  // ── VISTA 2: Crédito y Cuotas ─────────────────────────────────────────────
+
+  Widget _buildVistaCreditoCuotas() {
+    return Column(
+      children: [
+        _buildInfoCreditoCuotas(),
+        const SizedBox(height: AppSpacing.lg),
+        _buildSabanaFacturacion(),
+      ],
+    );
+  }
+
+  Widget _buildSabanaFacturacion() {
+    return StreamBuilder<List<FacturacionTarjetaModel>>(
+      stream: _repository.watchDetalleFacturacionTarjetas(_mesSeleccionado),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final tarjetas = snapshot.data!;
+
+        if (tarjetas.isEmpty) {
+          return _buildEstadoVacioCredito();
+        }
+
+        return Column(
+          children: tarjetas.map((tarjeta) => _buildTarjetaCard(tarjeta)).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildEstadoVacioCredito() {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Center(
+          child: Column(
+            children: [
+              PhosphorIcon(
+                PhosphorIconsRegular.checkCircle,
+                size: 48,
+                color: AppTheme.incomeColor(context),
+              ),
+              const SizedBox(height: AppSpacing.md),
               Text(
-                'Proyección',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                'Sin Compromisos de Crédito',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'No hay cuotas exigibles para este período',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTarjetaCard(FacturacionTarjetaModel tarjeta) {
+    final scheme = Theme.of(context).colorScheme;
+    final dateFormat = DateFormat('dd/MM');
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.base),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Encabezado de la tarjeta
+            Row(
+              children: [
+                PhosphorIcon(
+                  PhosphorIconsRegular.creditCard,
+                  size: 20,
                   color: AppTheme.creditColor(context),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tarjeta.nombreTarjeta,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Cierre: ${dateFormat.format(tarjeta.fechaCierre)} • Vence: ${dateFormat.format(tarjeta.fechaVencimiento)}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _buildBadgeEstado(tarjeta),
+              ],
+            ),
+            const Divider(height: AppSpacing.lg),
+
+            // Mini desglose financiero
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildMontoLabel(
+                  'Facturado',
+                  tarjeta.totalFacturado,
+                  scheme.onSurface,
+                ),
+                _buildMontoLabel(
+                  'Abonos',
+                  -tarjeta.totalAbonado,
+                  AppTheme.incomeColor(context),
+                ),
+                _buildMontoLabel(
+                  // Cambiar label según estado
+                  tarjeta.enFacturacion ? 'Por Facturar' : 'Saldo a Pagar',
+                  tarjeta.saldoPendiente,
+                  // Color según estado
+                  tarjeta.alDia
+                      ? AppTheme.incomeColor(context)
+                      : tarjeta.enFacturacion
+                          ? scheme.onSurfaceVariant
+                          : AppTheme.expenseColor(context),
+                  destacado: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Lista de cuotas
+            ...tarjeta.cuotas.map((cuota) => _buildCuotaItem(cuota)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBadgeEstado(FacturacionTarjetaModel tarjeta) {
+    final scheme = Theme.of(context).colorScheme;
+    Color color;
+    String texto;
+
+    if (tarjeta.alDia) {
+      color = AppTheme.incomeColor(context);
+      texto = 'Al Día';
+    } else if (tarjeta.vencido) {
+      color = AppTheme.expenseColor(context);
+      texto = 'Vencido';
+    } else if (tarjeta.enFacturacion) {
+      // Ciclo abierto, aún no es exigible
+      color = scheme.primary;
+      texto = 'En Facturación';
+    } else if (tarjeta.porPagar) {
+      // Ciclo cerrado, dentro del plazo
+      color = AppColors.warning;
+      texto = 'Por Pagar';
+    } else {
+      color = scheme.onSurfaceVariant;
+      texto = 'Desconocido';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Text(
+        texto,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMontoLabel(String label, double monto, Color color, {bool destacado = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          Formatters.monedaConSimbolo(monto.abs()),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: color,
+            fontWeight: destacado ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCuotaItem(CuotaDetalleModel cuota) {
+    final scheme = Theme.of(context).colorScheme;
+    final dateFormat = DateFormat('dd/MM');
+
+    // Color según estado: vencida (rojo), pagada (verde), pendiente (neutro)
+    final color = cuota.esVencida
+        ? AppTheme.expenseColor(context)
+        : cuota.pagada
+            ? AppTheme.incomeColor(context)
+            : scheme.onSurfaceVariant;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  cuota.descripcion,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (cuota.esVencida)
+                  Text(
+                    'Venció el ${dateFormat.format(cuota.fechaVencimiento)}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppTheme.expenseColor(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            'Cuota ${cuota.etiquetaCuota}',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            Formatters.monedaConSimbolo(cuota.monto),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── VISTA 3: Salud Financiera ─────────────────────────────────────────────
+
+  Widget _buildVistaSaludFinanciera() {
+    return StreamBuilder<ResumenFinanciero>(
+      stream: _repository.watchResumenMes(_inicioMes, _finMes),
+      builder: (_, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final r = snap.data!;
+        final tasaAhorro = r.ingresos > 0
+            ? ((r.ingresos - r.egresos) / r.ingresos * 100)
+            : 0.0;
+        final color = tasaAhorro >= 20
+            ? AppTheme.incomeColor(context)
+            : tasaAhorro >= 10
+                ? AppColors.warning
+                : AppTheme.expenseColor(context);
+        final diagnostico = tasaAhorro >= 20
+            ? 'Excelente'
+            : tasaAhorro >= 10
+                ? 'Aceptable'
+                : 'Crítico';
+
+        return Column(
+          children: [
+            _buildSaludCard(
+              'Tasa de Ahorro',
+              '${tasaAhorro.toStringAsFixed(1)}%',
+              PhosphorIconsRegular.piggyBank,
+              color,
+              diagnostico,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _buildSaludCard(
+              'Balance Operativo',
+              Formatters.monedaConSimbolo(r.balance),
+              PhosphorIconsRegular.scales,
+              r.balance >= 0 ? AppTheme.incomeColor(context) : AppTheme.expenseColor(context),
+              r.balance >= 0 ? 'Positivo' : 'Déficit',
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _buildProporcionGastos(),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSaludCard(
+    String titulo,
+    String valor,
+    IconData icon,
+    Color color,
+    String diagnostico,
+  ) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            AppSemanticIcon(icon: icon, color: color, size: AppIconSize.md),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    valor,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
+              child: Text(
+                diagnostico,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: color,
                   fontWeight: FontWeight.w600,
                 ),
               ),
+            ),
           ],
         ),
-        IconButton(
-          icon: PhosphorIcon(PhosphorIconsRegular.caretRight),
-          onPressed: enLimiteFuturo ? null : _mesSiguiente,
+      ),
+    );
+  }
+
+  Widget _buildProporcionGastos() {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Center(
+          child: Column(
+            children: [
+              PhosphorIcon(
+                PhosphorIconsRegular.chartPie,
+                size: 48,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Gastos Fijos vs Variables',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Próximamente: análisis de gastos recurrentes',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 

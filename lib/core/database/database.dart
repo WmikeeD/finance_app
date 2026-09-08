@@ -509,6 +509,56 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// Sincroniza el saldo de todas las tarjetas de crédito basándose en cuotas pendientes.
+  ///
+  /// Este método corrige discrepancias entre `cuentas.saldo` y la deuda real calculada
+  /// desde cuotas NO pagadas. Debe ejecutarse cuando:
+  /// - Se detecta inconsistencia entre modal y reportes
+  /// - Después de eliminar transacciones masivamente
+  /// - En migraciones de datos
+  Future<void> sincronizarSaldosTarjetasCredito() async {
+    try {
+      final tarjetas = await (select(cuentas)
+            ..where((c) => c.tipo.equals('credito') & c.activa.equals(true)))
+          .get();
+
+      int corregidas = 0;
+
+      for (final tarjeta in tarjetas) {
+        // Calcular deuda real desde cuotas
+        final deudaReal = await calcularDeudaRealTarjeta(tarjeta.id);
+
+        // El saldo de una tarjeta debe ser negativo si hay deuda
+        final saldoEsperado = -deudaReal;
+
+        // Verificar si hay discrepancia
+        final discrepancia = (tarjeta.saldo - saldoEsperado).abs();
+
+        if (discrepancia > 0.01) {
+          // Actualizar saldo directamente
+          await (update(cuentas)..where((c) => c.id.equals(tarjeta.id)))
+              .write(CuentasCompanion(
+            saldo: Value(saldoEsperado),
+          ));
+
+          debugPrint(
+              '✅ Sincronizado "${tarjeta.nombre}": \$${tarjeta.saldo.toStringAsFixed(0)} → \$${saldoEsperado.toStringAsFixed(0)} (diff: \$${discrepancia.toStringAsFixed(0)})');
+          corregidas++;
+        } else {
+          debugPrint('✓ "${tarjeta.nombre}": saldo correcto (\$${tarjeta.saldo.toStringAsFixed(0)})');
+        }
+      }
+
+      if (corregidas > 0) {
+        debugPrint('🔧 Sincronización completada: $corregidas de ${tarjetas.length} tarjetas corregidas');
+      } else {
+        debugPrint('✅ Todas las tarjetas (${tarjetas.length}) tienen saldo correcto');
+      }
+    } catch (e, stack) {
+      debugPrint('Error al sincronizar saldos de tarjetas: $e\n$stack');
+    }
+  }
+
   // =============================================
   // MÉTODOS DE COBRO DE DEUDAS
   // =============================================
@@ -701,6 +751,51 @@ class AppDatabase extends _$AppDatabase {
       );
 
       debugPrint('↩️ Cuota ${cuota.numeroCuota} revertida a pendiente');
+    }
+  }
+
+  /// Calcula la deuda real de una tarjeta de crédito basándose en cuotas pendientes.
+  ///
+  /// A diferencia de `cuentas.saldo` (que se basa en transacciones), este método
+  /// suma únicamente las cuotas NO pagadas de transacciones activas, reflejando
+  /// la deuda exigible real.
+  ///
+  /// Retorna:
+  /// - Monto positivo = deuda pendiente
+  /// - 0.0 = sin deuda
+  Future<double> calcularDeudaRealTarjeta(int cuentaCreditoId) async {
+    try {
+      // Verificar que sea una cuenta de crédito
+      final cuenta = await (select(cuentas)
+            ..where((c) => c.id.equals(cuentaCreditoId)))
+          .getSingleOrNull();
+
+      if (cuenta == null || cuenta.tipo != 'credito') {
+        debugPrint('⚠️ calcularDeudaRealTarjeta: cuenta $cuentaCreditoId no es de crédito');
+        return 0.0;
+      }
+
+      // Obtener todas las cuotas pendientes (no pagadas) de transacciones activas
+      final cuotasPendientes = await (select(cuotas).join([
+        innerJoin(transacciones, transacciones.id.equalsExp(cuotas.transaccionId))
+      ])
+            ..where(transacciones.cuentaId.equals(cuentaCreditoId) &
+                cuotas.pagada.equals(false) &
+                cuotas.deletedAt.isNull() &
+                transacciones.deletedAt.isNull()))
+          .get();
+
+      // Sumar el monto de todas las cuotas pendientes
+      final deudaTotal = cuotasPendientes.fold<double>(0.0, (sum, row) {
+        final cuota = row.readTable(cuotas);
+        return sum + cuota.monto;
+      });
+
+      debugPrint('💳 Deuda real de "${cuenta.nombre}": \$${deudaTotal.toStringAsFixed(2)} (${cuotasPendientes.length} cuotas pendientes)');
+      return deudaTotal;
+    } catch (e, stack) {
+      debugPrint('Error al calcular deuda real de tarjeta $cuentaCreditoId: $e\n$stack');
+      return 0.0;
     }
   }
 

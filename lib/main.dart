@@ -51,6 +51,7 @@ class _MyAppState extends State<MyApp> {
     _cargarColorInicial();
     _iniciarNotificaciones();
     _procesarIngresosRecurrentes();
+    _sincronizarSaldosTarjetas();
   }
 
   Future<void> _cargarColorInicial() async {
@@ -87,6 +88,19 @@ class _MyAppState extends State<MyApp> {
       }
     } catch (e) {
       debugPrint('⚠️ Error al procesar ingresos recurrentes: $e');
+    }
+  }
+
+  /// Sincroniza los saldos de las tarjetas de crédito basándose en cuotas pendientes.
+  ///
+  /// Este método corrige discrepancias entre el saldo almacenado en `cuentas.saldo`
+  /// y la deuda real calculada desde cuotas NO pagadas. Se ejecuta automáticamente
+  /// al iniciar la app para mantener consistencia entre reportes y modales.
+  Future<void> _sincronizarSaldosTarjetas() async {
+    try {
+      await widget.database.sincronizarSaldosTarjetasCredito();
+    } catch (e) {
+      debugPrint('⚠️ Error al sincronizar saldos de tarjetas: $e');
     }
   }
 
